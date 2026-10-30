@@ -6,8 +6,8 @@ breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/entrenamiento.css?v=7"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=1.8"
-  - "/entrenamiento/js/entrenamiento.js?v=11"
+  - "/entrenamiento/js/constelacion.js?v=1.9"
+  - "/entrenamiento/js/entrenamiento.js?v=12"
 ---
 
 <div class="app-entrenamiento">
@@ -71,6 +71,7 @@ scripts:
       <button id="finishSessionBtn" class="btn btn-session-end" type="button" disabled>Terminar sesión del día</button>
       <div class="actions">
         <button id="constellationBtn" class="btn btn-constellation" type="button">Crear constelación</button>
+        <button id="previousConstellationBtn" class="btn btn-constellation" type="button" hidden>Constelación de la sesión anterior</button>
         <a class="btn btn-history" href="/entrenamiento/historial/">Ver mi historial</a>
         <a class="btn btn-home" href="/">Volver al inicio</a>
       </div>
@@ -118,4 +119,5 @@ scripts:
     </label>
   </section>
 </div>
+
 

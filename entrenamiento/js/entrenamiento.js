@@ -436,24 +436,40 @@
   }
 
   const constellationOverlay=$('constellationOverlay'), constellationImage=$('constellationImage');
-  let constellationUrl='';
-  function constellationArrows(){
-    return [...state.completed.flatMap(e=>e.arrows||[]),...state.current];
+  let constellationUrl='',constellationDate='';
+  function constellationArrows(session=state){
+    return Array.isArray(session.arrows) ? session.arrows : [...(session.completed||[]).flatMap(e=>e.arrows||[]),...(session.current||[])];
   }
-  function constellationMeasurement(key){
-    const values=state.completed.map(end=>end[key]).concat(state[key]).map(value=>String(value||'').trim()).filter(Boolean);
+  function constellationMeasurement(key,session=state){
+    const values=(session.completed||[]).map(end=>end[key]).concat(session[key]).map(value=>String(value||'').trim()).filter(Boolean);
     return [...new Set(values)].join(' / ');
   }
-  function drawConstellation(){
-    const arrows=constellationArrows();
+  function previousConstellationSession(){
+    if(state.completed.some(end=>(end.arrows||[]).length) || state.current.length>=state.arrowsPerEnd)return null;
+    let history=[];
+    try{const saved=JSON.parse(localStorage.getItem(historyStorageKey));if(Array.isArray(saved))history=saved;}catch(_){}
+    // The in-memory copy can survive a storage write failure when ending a session.
+    const owner=ownerSnapshot();
+    const candidates=[...history,window.arbatLastCompletedSession].filter(session=>{
+      if(!session || session.id===state.id || !constellationArrows(session).length)return false;
+      return session.owner?.id!=null ? String(session.owner.id)===String(owner.id) : owner.anonymous;
+    });
+    return candidates.map((session,index)=>({session,index,time:Date.parse(session.endedAt||session.startedAt||session.date)||0}))
+      .sort((a,b)=>b.time-a.time||b.index-a.index)[0]?.session||null;
+  }
+  function updatePreviousConstellation(){
+    $('previousConstellationBtn').hidden=!previousConstellationSession();
+  }
+  function drawConstellation(session=state){
+    const arrows=constellationArrows(session);
     if(!arrows.length)return false;
-    const shootingDistance=constellationMeasurement('shootingDistance'),targetSize=constellationMeasurement('targetSize');
-    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:state.date,sessionType:state.sessionType,shootingDistance,targetSize,rounds:state.completed.filter(e=>(e.arrows||[]).length).length+(state.current.length?1:0),arrowsPerEnd:state.arrowsPerEnd});
+    const shootingDistance=constellationMeasurement('shootingDistance',session),targetSize=constellationMeasurement('targetSize',session);
+    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:session.date,sessionType:session.sessionType,shootingDistance,targetSize,rounds:Array.isArray(session.completed)?session.completed.filter(e=>(e.arrows||[]).length).length+(session.current?.length?1:0):undefined,arrowsPerEnd:session.arrowsPerEnd});
     if(sharedCanvas){
       sharedCanvas.toBlob(blob=>{
         if(!blob)return;
         const previous=constellationUrl;
-        constellationUrl=URL.createObjectURL(blob);constellationImage.src=constellationUrl;
+        constellationUrl=URL.createObjectURL(blob);constellationDate=session.date||'';constellationImage.src=constellationUrl;
         if(previous)URL.revokeObjectURL(previous);
         constellationOverlay.hidden=false;
       },'image/png');
@@ -466,10 +482,16 @@
     if(!drawConstellation()){$('status').textContent='Registra al menos una flecha para crear la constelación.';return;}
     $('status').textContent='Constelación creada a partir de los datos de la sesión.';
   });
+  $('previousConstellationBtn').addEventListener('click',()=>{
+    const previous=previousConstellationSession();
+    if(!previous){updatePreviousConstellation();$('status').textContent='No hay una sesión anterior disponible o ya registraste una andanada actual.';return;}
+    if(!window.ArbatConstellation){$('status').textContent='No se pudo cargar el generador de constelación. Recarga la página.';return;}
+    if(drawConstellation(previous))$('status').textContent=`Constelación de la sesión anterior (${previous.date||'sin fecha'}). La sesión actual se conserva.`;
+  });
   $('constellationClose').addEventListener('click',()=>{constellationOverlay.hidden=true;});
   $('constellationDownload').addEventListener('click',()=>{
     if(!constellationUrl)return;
-    const a=document.createElement('a');a.href=constellationUrl;a.download=`arbat-constelacion-${state.date}.png`;document.body.append(a);a.click();a.remove();
+    const a=document.createElement('a');a.href=constellationUrl;a.download=`arbat-constelacion-${constellationDate}.png`;document.body.append(a);a.click();a.remove();
   });
 
   function render(){
@@ -486,7 +508,7 @@
     if(document.activeElement!==$('sessionNotes'))$('sessionNotes').value=state.notes;
     $('endSummaryTotal').textContent=subtotal(state.current);
     $('endSummaryOverlay').hidden=!locked;
-    wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();
+    wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();updatePreviousConstellation();
     schedulePendingEnd();
   }
 
@@ -538,8 +560,9 @@
   }
   const syncOwner=()=>{
     const owner=ownerSnapshot();
-    if(!owner.anonymous&&(state.owner?.anonymous!==false||state.owner?.id!==owner.id)){state.owner=owner;save();publishSessionData();}
+    if(!owner.anonymous&&(state.owner?.anonymous!==false||state.owner?.id!==owner.id)){state.owner=owner;save();publishSessionData();updatePreviousConstellation();}
   };
   ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded','buddy:user-updated'].forEach(eventName=>window.addEventListener(eventName,syncOwner));
 })();
+
 

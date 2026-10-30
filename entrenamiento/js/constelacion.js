@@ -25,8 +25,8 @@
 
   function colorAt(density) {
     // A single isolated arrow cannot become a yellow peak through max-normalization.
-    const q = 1 - Math.exp(-density / 8);
-    const stops = [[0, 15, 70, 255], [.18, 72, 40, 220], [.36, 180, 28, 170],
+    const q = 1 - Math.exp(-density / 4);
+    const stops = [[0, 15, 70, 255], [.28, 35, 85, 255], [.42, 150, 32, 190],
       [.55, 245, 38, 65], [.74, 255, 125, 20], [.9, 255, 220, 70], [1, 255, 248, 210]];
     let i = 1;
     while (i < stops.length - 1 && q > stops[i][0]) i++;
@@ -54,19 +54,20 @@
     const hctx = heat.getContext('2d'), image = hctx.createImageData(size, size);
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
       const xx = CX - R + (x + .5) / size * R * 2, yy = CY - R + (y + .5) / size * R * 2;
-      const density = densityAt(points, xx, yy);
+      // Wider gas field blends nearby impacts without moving a single star.
+      const density = densityAt(points, xx, yy, .08);
       if (density < .035) continue;
       const i = (y * size + x) * 4, color = colorAt(density);
       image.data[i] = color[0]; image.data[i + 1] = color[1]; image.data[i + 2] = color[2];
       // Fine-scale KDE adds soft internal filaments only where measured density exists.
       const fine = densityAt(points, xx, yy, .018);
       const detail = .82 + .18 * Math.min(1, fine / Math.max(density * .3, .001));
-      image.data[i + 3] = 235 * (1 - Math.exp(-density / 4)) * detail;
+      image.data[i + 3] = 245 * (1 - Math.exp(-density / 2)) * detail;
     }
     hctx.putImageData(image, 0, 0);
     ctx.save(); ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.clip();
     ctx.globalCompositeOperation = 'screen';
-    ctx.filter = 'blur(12px)'; ctx.globalAlpha = .65;
+    ctx.filter = 'blur(18px)'; ctx.globalAlpha = .8;
     ctx.drawImage(heat, CX - R, CY - R, R * 2, R * 2);
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     ctx.drawImage(heat, CX - R, CY - R, R * 2, R * 2);
@@ -118,9 +119,10 @@
       ctx.fillStyle = '#b8cde2'; ctx.font = '20px Arial, sans-serif'; lines.forEach((line, j) => ctx.fillText(line, x, 1216 + j * 24));
     });
     ctx.fillStyle = '#b8cde2'; ctx.font = '23px Arial, sans-serif'; ctx.fillText('arbatarchery.com', CX, 1290);
-    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('v1.8', CX, 1324);
+    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('v1.9', CX, 1324);
     return canvas;
   }
 
   window.ArbatConstellation = { createCanvas };
 })();
+

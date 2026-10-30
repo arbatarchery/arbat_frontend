@@ -29,7 +29,7 @@ for (const [name, arrows, stars] of [
   assert.equal(cores.length, stars);
   api.geometry(arrows).forEach((p, i) => { assert.equal(cores[i][1], p.x); assert.equal(cores[i][2], p.y); });
   const text = api.calls.filter(c => c[0] === 'fillText').map(c => String(c[1]));
-  assert.ok(text.includes('36')); assert.ok(text.includes('6')); assert.ok(text.includes('v1.8'));
+  assert.ok(text.includes('36')); assert.ok(text.includes('6')); assert.ok(text.includes('v1.9'));
   assert.ok(!text.some(s => /\bM\b|miss/i.test(s)));
   const total = stars * 7;
   assert.ok(text.includes(String(total))); assert.ok(text.includes((total / 36).toFixed(2).replace('.', ',')));
@@ -65,4 +65,12 @@ test('retain distance and target size in the exported header', () => {
   const a = setup();
   a.createCanvas({ arrows: [], shootingDistance: '18', targetSize: '40' });
   assert.ok(a.calls.some(c => c[0] === 'fillText' && c[1] === 'Distancia: 18 m · Diana: 40 cm'));
+});
+
+
+test('gas palette stays blue for isolated arrows, red in between and yellow in dense groups', () => {
+  const a=setup(),blue=a.colorAt(1),red=a.colorAt(3.2),yellow=a.colorAt(10);
+  assert.ok(blue[2]>blue[0]*2 && blue[2]>blue[1]*2);
+  assert.ok(red[0]>red[1]*2 && red[0]>red[2]*2);
+  assert.ok(yellow[0]>230 && yellow[1]>200 && yellow[2]<130);
 });

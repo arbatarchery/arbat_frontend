@@ -6,7 +6,7 @@ breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/historial/css/historial.css?v=5"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=1.8"
+  - "/entrenamiento/js/constelacion.js?v=1.9"
   - "/entrenamiento/historial/js/historial.js?v=8"
 ---
 
@@ -64,4 +64,5 @@ scripts:
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
   <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
 </div>
+
 
