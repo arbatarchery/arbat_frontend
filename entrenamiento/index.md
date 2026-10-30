@@ -4,10 +4,10 @@ title: "Registro de entrenamiento"
 description: "Aplicación para registrar puntajes de entrenamiento de tiro con arco: anotá tus flechas en la diana, llevá el control de tus andanadas y generá la constelación de la sesión."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/css/entrenamiento.css?v=6"
+  - "/entrenamiento/css/entrenamiento.css?v=7"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=2"
-  - "/entrenamiento/js/entrenamiento.js?v=8"
+  - "/entrenamiento/js/entrenamiento.js?v=9"
 ---
 
 <div class="app-entrenamiento">
@@ -33,8 +33,10 @@ scripts:
           </g>
           <circle id="highlight" class="aim-ring" cx="50" cy="50" r="0" fill="none" stroke="#fff" stroke-width="4.2"/>
           <g id="aimCrosshair" class="aim-crosshair" aria-hidden="true">
-            <line x1="-2.6" y1="-2.6" x2="2.6" y2="2.6"/>
-            <line x1="-2.6" y1="2.6" x2="2.6" y2="-2.6"/>
+            <line x1="0" y1="-1.15" x2="0" y2="-5"/>
+            <line x1="1" y1=".58" x2="4.33" y2="2.5"/>
+            <line x1="-1" y1=".58" x2="-4.33" y2="2.5"/>
+            <circle cx="0" cy="0" r="1.05"/>
           </g>
           <g id="markers"></g>
         </svg>
