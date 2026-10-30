@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10;
+  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10, MOBILE_AIM_OFFSET_PX = 38;
   const localDateKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -32,11 +32,11 @@
     const anonymousId=anonymousDeviceId();
     return{id:`anon:${anonymousId}`,name:'',anonymous:true,anonymousId};
   };
-  const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',notes:'',owner:ownerSnapshot()});
+  const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',shootingDistance:'',targetSize:'',notes:'',owner:ownerSnapshot()});
   let state = fresh(), activePointer = null, provisional = null, pendingEndTimer = 0;
 
   const $ = id => document.getElementById(id);
-  const svg = $('target'), wrap = $('targetWrap'), highlight = $('highlight');
+  const svg = $('target'), wrap = $('targetWrap'), highlight = $('highlight'), aimCrosshair = $('aimCrosshair');
   const vibrate = ms => { if ('vibrate' in navigator) navigator.vibrate(ms); };
   const valueOf = a => a.label === 'M' ? 0 : 10 === a.score ? 10 : a.score;
   const subtotal = arrows => arrows.reduce((s,a) => s + valueOf(a), 0);
@@ -54,6 +54,8 @@
   }
   state.arrowsPerEnd=Number(state.arrowsPerEnd);
   if(!['training','competition'].includes(state.sessionType))state.sessionType='training';
+  if(typeof state.shootingDistance!=='string')state.shootingDistance=state.shootingDistance==null?'':String(state.shootingDistance);
+  if(typeof state.targetSize!=='string')state.targetSize=state.targetSize==null?'':String(state.targetSize);
   if(typeof state.notes!=='string')state.notes='';
   if(!state.id)state.id=sessionId();
   if(!state.startedAt)state.startedAt=state.current[0]?.recordedAt||state.completed[0]?.arrows?.[0]?.recordedAt||new Date().toISOString();
@@ -80,6 +82,8 @@
     return {x:q.x, y:q.y};
   }
   const pointFromEvent = e => pointFromClient(e.clientX,e.clientY);
+  const usesMobileAimOffset = e => e.pointerType==='touch'&&window.matchMedia('(max-width: 859px)').matches;
+  const markPointFromEvent = e => pointFromClient(e.clientX,e.clientY-(usesMobileAimOffset(e)?MOBILE_AIM_OFFSET_PX:0));
 
   function scorePoint(p){
     const d = Math.hypot(p.x-50,p.y-50);
@@ -88,9 +92,11 @@
     return {label:d <= BAND/2 ? 'X' : String(score),score,d};
   }
 
-  function showProvisional(p){
+  function showProvisional(p,showCrosshair=false){
     provisional = {...scorePoint(p),x:p.x,y:p.y};
     $('currentScore').textContent = provisional.label;
+    aimCrosshair.setAttribute('transform',`translate(${p.x} ${p.y})`);
+    aimCrosshair.style.opacity=showCrosshair?'1':'0';
     if (provisional.label === 'M') { highlight.style.opacity='0'; return; }
     const score = provisional.score;
     highlight.setAttribute('r', provisional.label === 'X' ? BAND/4 : score === 10 ? BAND/2 : OUTER_R-(score-.5)*BAND);
@@ -98,7 +104,7 @@
     highlight.style.opacity='.92';
   }
 
-  function resetProvisional(){ provisional=null; $('currentScore').textContent='—'; highlight.style.opacity='0'; }
+  function resetProvisional(){ provisional=null; $('currentScore').textContent='—'; highlight.style.opacity='0';aimCrosshair.style.opacity='0'; }
 
   function finishCurrentEnd(automatic=false){
     clearTimeout(pendingEndTimer);pendingEndTimer=0;
@@ -109,6 +115,8 @@
       endedAt:lastArrow.recordedAt||new Date().toISOString(),
       arrowLimit:endLimit(),
       sessionType:state.sessionType,
+      shootingDistance:state.shootingDistance,
+      targetSize:state.targetSize,
       notes:state.notes
     });
     const ended=state.completed[state.completed.length-1];
@@ -191,21 +199,21 @@
     try{wrap.setPointerCapture(e.pointerId);}catch(_){}
     if(pointers.size>=2){beginPinch();e.preventDefault();return;}
     if(suppressMarking||state.current.length>=endLimit()){gesture='blocked';e.preventDefault();return;}
-    activePointer=e.pointerId;gesture='mark';showProvisional(pointFromEvent(e));e.preventDefault();
+    activePointer=e.pointerId;gesture='mark';showProvisional(markPointFromEvent(e),usesMobileAimOffset(e));e.preventDefault();
   });
   wrap.addEventListener('pointermove', e => {
     if(!pointers.has(e.pointerId))return;
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(gesture==='pinch'){updatePinch();e.preventDefault();return;}
-    if(gesture==='mark'&&e.pointerId===activePointer){showProvisional(pointFromEvent(e));e.preventDefault();}
+    if(gesture==='mark'&&e.pointerId===activePointer){showProvisional(markPointFromEvent(e),usesMobileAimOffset(e));e.preventDefault();}
   });
   wrap.addEventListener('pointerup', e => {
     if(gesture!=='mark'||e.pointerId!==activePointer){clearPointer(e.pointerId);e.preventDefault();return;}
-    const p=pointFromEvent(e);
+    const rawPoint=pointFromEvent(e),p=markPointFromEvent(e);
     // Pointer capture can deliver the release outside the interactive square.
     // Cancel it instead of inventing a position outside the visible target.
-    if(p.x<0||p.x>100||p.y<0||p.y>100){clearPointer(e.pointerId);resetProvisional();$('status').textContent='Gesto cancelado fuera del área de la diana.';return;}
-    showProvisional(p);
+    if(rawPoint.x<0||rawPoint.x>100||rawPoint.y<0||rawPoint.y>100){clearPointer(e.pointerId);resetProvisional();$('status').textContent='Gesto cancelado fuera del área de la diana.';return;}
+    showProvisional(p,usesMobileAimOffset(e));
     const arrow={label:provisional.label,score:provisional.score,x:provisional.x,y:provisional.y};
     clearPointer(e.pointerId);resetProvisional();
     addArrow(arrow);
@@ -247,7 +255,7 @@
   }
   const originalHeader=['Andanada','Separador 1',...Array.from({length:MAX},(_,i)=>`Flecha ${i+1}`),'Separador 2','Total andanada','Total sesión','Separador 3','Fecha y hora de última flecha'];
   const positionHeader=Array.from({length:MAX},(_,i)=>[`Lanzamiento ${i+1} puntaje`,`Lanzamiento ${i+1} hora de marcado`,`Lanzamiento ${i+1} reloj`,`Lanzamiento ${i+1} ángulo (°)`,`Lanzamiento ${i+1} radio (borde=1)`]).flat();
-  const dataHeader=[...originalHeader,'Separador 4',...positionHeader,'Tipo de sesión','Notas de la sesión'];
+  const dataHeader=[...originalHeader,'Separador 4',...positionHeader,'Tipo de sesión','Notas de la sesión','Distancia de disparo (m)','Tamaño de diana (cm)'];
   const csvComments=[
     '# Registro de entrenamiento de arbat. Este bloque explicativo aparece una sola vez al comienzo del archivo.',
     '# Una fila de datos corresponde a una andanada terminada. Andanada es un número consecutivo dentro de la sesión.',
@@ -264,7 +272,8 @@
     '# Los valores de reloj; ángulo y radio permiten analizar agrupaciones. Posiciones de M antiguas sin ubicación registrada quedan vacías.',
     '# Fecha y hora usan el formato AAAA-MM-DD HH:mm:ss en la zona horaria local del dispositivo.',
     '# Tipo de sesión queda vacío para Entrenamiento y contiene Tournament para Competencia. El valor corresponde a la opción elegida al terminar cada andanada.',
-    '# Notas de la sesión contiene el texto libre cuando aparece por primera vez o cuando cambia respecto de la andanada anterior; si no cambia; la celda queda vacía. Puede describir el campo; el clima; el viento o cómo se sentía el arquero.'
+    '# Notas de la sesión contiene el texto libre cuando aparece por primera vez o cuando cambia respecto de la andanada anterior; si no cambia; la celda queda vacía. Puede describir el campo; el clima; el viento o cómo se sentía el arquero.',
+    '# Distancia de disparo (m) y Tamaño de diana (cm) guardan las opciones activas al terminar cada andanada. Quedan vacías si el usuario no proporcionó el dato.'
   ];
   function sessionRows(session=state){
     let running=0,previousNotes='';
@@ -281,7 +290,7 @@
       const currentNotes=end.notes||'';
       const notesForCsv=currentNotes!==previousNotes?currentNotes:'';
       previousNotes=currentNotes;
-      return [i+1,'',...values,'',subtotal(end.arrows),running,'',localDateTime(endedAt),'',...positions,end.sessionType==='competition'?'Tournament':'',notesForCsv];
+      return [i+1,'',...values,'',subtotal(end.arrows),running,'',localDateTime(endedAt),'',...positions,end.sessionType==='competition'?'Tournament':'',notesForCsv,end.shootingDistance||'',end.targetSize||''];
     });
   }
   function csvText(session=state){
@@ -299,6 +308,8 @@
         endedAt:lastArrow.recordedAt||new Date().toISOString(),
         arrowLimit:endLimit(),
         sessionType:state.sessionType,
+        shootingDistance:state.shootingDistance,
+        targetSize:state.targetSize,
         notes:state.notes
       };
       state.completed.push(end);state.current=[];
@@ -351,6 +362,8 @@
       cantidad:end.arrows.length,
       total:subtotal(end.arrows),
       tipoSesion:end.sessionType==='competition'?'Tournament':'',
+      distanciaDisparoMetros:end.shootingDistance||'',
+      tamanoDianaCentimetros:end.targetSize||'',
       notas:end.notes||'',
       flechas:flechas
     };
@@ -389,9 +402,12 @@
     grid.className='arrow-grid'+(cellCount>DEFAULT_END_SIZE?' extended':'');
     grid.style.setProperty('--arrow-columns',String(Math.min(cellCount,DEFAULT_END_SIZE)));
     for(let i=0;i<cellCount;i++){
-      const cell=document.createElement('div'); cell.className='arrow-cell'+(displayValues[i]==='M'?' miss':'');
+      const value=displayValues[i]||'';
+      const score=value==='X'?10:Number(value);
+      const colorClass=!value?'':value==='M'?' score-miss':score>=9?' score-yellow':score>=7?' score-red':score>=5?' score-blue':score>=3?' score-black':' score-white';
+      const cell=document.createElement('div'); cell.className='arrow-cell'+(value?' has-score':'')+colorClass;
       const num=document.createElement('span');num.className='num';num.textContent=`F${i+1}`;
-      const val=document.createElement('span');val.className='val';val.textContent=displayValues[i]||'·';cell.append(num,val);grid.append(cell);
+      const val=document.createElement('span');val.className='val';val.textContent=value||'·';cell.append(num,val);grid.append(cell);
     }
     const foot=document.createElement('div');foot.className='totals-row';
     foot.innerHTML=`<span>Subtotal: <strong>${subtotal(arrows)}</strong></span><span>Acumulado: <strong>${running}</strong></span>`;
@@ -419,10 +435,15 @@
   function constellationArrows(){
     return [...state.completed.flatMap(e=>e.arrows||[]),...state.current];
   }
+  function constellationMeasurement(key){
+    const values=state.completed.map(end=>end[key]).concat(state[key]).map(value=>String(value||'').trim()).filter(Boolean);
+    return [...new Set(values)].join(' / ');
+  }
   function drawConstellation(){
     const arrows=constellationArrows();
     if(!arrows.length)return false;
-    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:state.date,sessionType:state.sessionType});
+    const shootingDistance=constellationMeasurement('shootingDistance'),targetSize=constellationMeasurement('targetSize');
+    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:state.date,sessionType:state.sessionType,shootingDistance,targetSize});
     if(sharedCanvas){
       sharedCanvas.toBlob(blob=>{
         if(!blob)return;
@@ -449,6 +470,10 @@
     const dateText=`${String(date.getDate()).padStart(2,'0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
     ctx.fillStyle='#68727a';ctx.font='400 22px Arial, sans-serif';
     ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,140);
+    const measurements=[];
+    if(shootingDistance)measurements.push(`Distancia: ${shootingDistance} m`);
+    if(targetSize)measurements.push(`Diana: ${targetSize} cm`);
+    if(measurements.length){ctx.fillStyle='#4d5660';ctx.font='600 20px Arial, sans-serif';ctx.fillText(measurements.join(' · '),cx,172);}
 
     // Pequeños elementos dorados exteriores.
     ctx.strokeStyle='rgba(201,157,68,.34)';ctx.lineWidth=1.2;
@@ -613,7 +638,7 @@
       ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
     });
     ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
-    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.6',1035,1320);
+    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.7',1035,1320);
 
     if(constellationUrl)URL.revokeObjectURL(constellationUrl);
     canvas.toBlob(b=>{
@@ -644,6 +669,8 @@
       input.disabled=sessionStarted();
     });
     document.querySelectorAll('input[name="sessionType"]').forEach(input=>{input.checked=input.value===state.sessionType;});
+    if(document.activeElement!==$('shootingDistance'))$('shootingDistance').value=state.shootingDistance;
+    if(document.activeElement!==$('targetSize'))$('targetSize').value=state.targetSize;
     if(document.activeElement!==$('sessionNotes'))$('sessionNotes').value=state.notes;
     $('endSummaryTotal').textContent=subtotal(state.current);
     $('endSummaryOverlay').hidden=!locked;
@@ -660,6 +687,13 @@
     state.sessionType=e.target.value;save();render();
     $('status').textContent=state.sessionType==='competition'?'Sesión marcada como Competencia.':'Sesión marcada como Entrenamiento.';
   }));
+  const bindMeasurement=(id,key,label)=>$(id).addEventListener('input',e=>{
+    const raw=e.target.value.trim();
+    state[key]=raw&&Number(raw)>=0?raw:'';save();publishSessionData();
+    $('status').textContent=state[key]?`${label}: ${state[key]}. Se aplicará a la andanada actual y a las siguientes.`:`${label} eliminado.`;
+  });
+  bindMeasurement('shootingDistance','shootingDistance','Distancia de disparo');
+  bindMeasurement('targetSize','targetSize','Tamaño de diana');
   $('sessionNotes').addEventListener('input',e=>{
     state.notes=e.target.value;save();publishSessionData();
   });
