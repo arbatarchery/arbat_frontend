@@ -232,7 +232,9 @@
     const canvas = window.ArbatConstellation && window.ArbatConstellation.createCanvas({
       arrows: session.arrows,
       date: session.date,
-      sessionType: session.sessionType
+      sessionType: session.sessionType,
+      rounds: Array.isArray(session.completed) ? session.completed.filter(end => (end.arrows || []).length).length + (session.current && session.current.length ? 1 : 0) : undefined,
+      arrowsPerEnd: session.arrowsPerEnd
     });
     if (canvas) {
       canvas.className = 'session-constellation-canvas';
