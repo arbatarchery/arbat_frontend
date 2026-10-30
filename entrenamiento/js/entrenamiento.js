@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10, MOBILE_AIM_OFFSET_PX = 57;
+  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10, MOBILE_AIM_OFFSET_PX = 57, MOBILE_ARROW_RADIUS = 1.05, LINE_EPSILON = 1e-9;
   const localDateKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -85,15 +85,20 @@
   const usesMobileAimOffset = e => e.pointerType==='touch'&&window.matchMedia('(max-width: 859px)').matches;
   const markPointFromEvent = e => pointFromClient(e.clientX,e.clientY-(usesMobileAimOffset(e)?MOBILE_AIM_OFFSET_PX:0));
 
-  function scorePoint(p){
+  function scorePoint(p,arrowRadius=0){
     const d = Math.hypot(p.x-50,p.y-50);
-    if (d > OUTER_R) return {label:'M',score:0,d};
-    let score = Math.min(10, Math.max(1, 11-Math.ceil((d || .00001)/BAND)));
-    return {label:d <= BAND/2 ? 'X' : String(score),score,d};
+    // En móvil el círculo representa el tubo: si su borde interior toca una
+    // línea, World Archery concede el valor superior. En escritorio el radio
+    // es cero y se conserva la precisión puntual del cursor.
+    const radius = Math.max(0,arrowRadius);
+    const scoringD = Math.max(0,d-radius-(radius?LINE_EPSILON:0));
+    if (scoringD > OUTER_R) return {label:'M',score:0,d};
+    let score = Math.min(10, Math.max(1, 11-Math.ceil((scoringD || .00001)/BAND)));
+    return {label:scoringD <= BAND/2 ? 'X' : String(score),score,d};
   }
 
   function showProvisional(p,showCrosshair=false){
-    provisional = {...scorePoint(p),x:p.x,y:p.y};
+    provisional = {...scorePoint(p,showCrosshair?MOBILE_ARROW_RADIUS:0),x:p.x,y:p.y};
     $('currentScore').textContent = provisional.label;
     aimCrosshair.setAttribute('transform',`translate(${p.x} ${p.y})`);
     aimCrosshair.style.opacity=showCrosshair?'1':'0';
