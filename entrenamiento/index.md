@@ -7,7 +7,7 @@ estilos:
   - "/entrenamiento/css/entrenamiento.css?v=7"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=2"
-  - "/entrenamiento/js/entrenamiento.js?v=9"
+  - "/entrenamiento/js/entrenamiento.js?v=10"
 ---
 
 <div class="app-entrenamiento">
