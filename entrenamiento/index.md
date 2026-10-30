@@ -6,8 +6,8 @@ breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/entrenamiento.css?v=5"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=1"
-  - "/entrenamiento/js/entrenamiento.js?v=7"
+  - "/entrenamiento/js/constelacion.js?v=1.2"
+  - "/entrenamiento/js/entrenamiento.js?v=8"
 ---
 
 <div class="app-entrenamiento">
