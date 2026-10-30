@@ -4,7 +4,7 @@
   const OUTER_R = 46;
   const valueOf = arrow => arrow && arrow.label === 'M' ? 0 : Number(arrow && arrow.score) || 0;
 
-  function createCanvas({ arrows = [], date = '', sessionType = 'training' } = {}) {
+  function createCanvas({ arrows = [], date = '', sessionType = 'training', shootingDistance = '', targetSize = '' } = {}) {
     if (!arrows.length) return null;
     const visible = arrows.filter(arrow => arrow.label !== 'M' && Number.isFinite(Number(arrow.x)) && Number.isFinite(Number(arrow.y)));
     const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
@@ -22,6 +22,13 @@
     const sessionLabel = sessionType === 'competition' || sessionType === 'Tournament' ? 'Sesión de competencia' : 'Sesión de entrenamiento';
     ctx.fillStyle = '#68727a'; ctx.font = '400 22px Arial, sans-serif';
     ctx.fillText(`${sessionLabel}${dateText ? ` · ${dateText}` : ''}`, cx, 140);
+    const measurements = [];
+    if (String(shootingDistance).trim()) measurements.push(`Distancia: ${shootingDistance} m`);
+    if (String(targetSize).trim()) measurements.push(`Diana: ${targetSize} cm`);
+    if (measurements.length) {
+      ctx.fillStyle = '#4d5660'; ctx.font = '600 20px Arial, sans-serif';
+      ctx.fillText(measurements.join(' · '), cx, 172);
+    }
 
     ctx.strokeStyle = 'rgba(201,157,68,.34)'; ctx.lineWidth = 1.2;
     [260, 330, 400, 470].forEach(radius => {
@@ -136,7 +143,7 @@
       ctx.fillStyle = '#4d5660'; ctx.font = '500 17px Arial, sans-serif'; ctx.fillText(stat[1], columns[index], 1205);
     });
     ctx.fillStyle = '#222831'; ctx.font = '500 18px Arial, sans-serif'; ctx.fillText('arbatarchery.com', cx, 1280);
-    ctx.textAlign = 'right'; ctx.fillStyle = '#697178'; ctx.font = '500 13px Arial, sans-serif'; ctx.fillText('V-1.6', 1035, 1320);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#697178'; ctx.font = '500 13px Arial, sans-serif'; ctx.fillText('V-1.7', 1035, 1320);
     return canvas;
   }
 

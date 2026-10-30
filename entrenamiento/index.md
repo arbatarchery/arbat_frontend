@@ -4,10 +4,10 @@ title: "Registro de entrenamiento"
 description: "Aplicación para registrar puntajes de entrenamiento de tiro con arco: anotá tus flechas en la diana, llevá el control de tus andanadas y generá la constelación de la sesión."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/css/entrenamiento.css?v=5"
+  - "/entrenamiento/css/entrenamiento.css?v=6"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=1"
-  - "/entrenamiento/js/entrenamiento.js?v=7"
+  - "/entrenamiento/js/constelacion.js?v=2"
+  - "/entrenamiento/js/entrenamiento.js?v=8"
 ---
 
 <div class="app-entrenamiento">
@@ -32,6 +32,10 @@ scripts:
             <circle cx="50" cy="50" r="2.3" fill="none" stroke="#555" stroke-width=".28"/>
           </g>
           <circle id="highlight" class="aim-ring" cx="50" cy="50" r="0" fill="none" stroke="#fff" stroke-width="4.2"/>
+          <g id="aimCrosshair" class="aim-crosshair" aria-hidden="true">
+            <line x1="-2.6" y1="-2.6" x2="2.6" y2="2.6"/>
+            <line x1="-2.6" y1="2.6" x2="2.6" y2="-2.6"/>
+          </g>
           <g id="markers"></g>
         </svg>
         <div id="endSummaryOverlay" class="end-summary-overlay" hidden aria-live="polite">
@@ -79,6 +83,16 @@ scripts:
 
   <section class="session-options" aria-labelledby="sessionOptionsTitle">
     <h2 id="sessionOptionsTitle">Opciones de la sesión</h2>
+    <div class="measurement-grid">
+      <label class="measurement-field" for="shootingDistance">
+        <strong>Distancia de disparo</strong>
+        <span><input id="shootingDistance" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Ej.: 18"><small>metros</small></span>
+      </label>
+      <label class="measurement-field" for="targetSize">
+        <strong>Tamaño de diana</strong>
+        <span><input id="targetSize" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Ej.: 40"><small>centímetros</small></span>
+      </label>
+    </div>
     <fieldset class="option-group">
       <legend>Flechas por andanada</legend>
       <div class="radio-grid arrow-count-options">

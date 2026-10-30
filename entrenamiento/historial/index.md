@@ -6,8 +6,8 @@ breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/historial/css/historial.css?v=5"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=6"
+  - "/entrenamiento/js/constelacion.js?v=2"
+  - "/entrenamiento/historial/js/historial.js?v=7"
 ---
 
 <div class="training-history" id="trainingHistory">
