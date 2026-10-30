@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10, MOBILE_AIM_OFFSET_PX = 38;
+  const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10, MOBILE_AIM_OFFSET_PX = 57;
   const localDateKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
