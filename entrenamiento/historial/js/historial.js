@@ -223,6 +223,11 @@
     const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : formatDate(date, { hour: '2-digit', minute: '2-digit' });
   }
 
+  function sessionMeasurement(session, key) {
+    const values = (session.completed || []).map(end => end[key]).concat(session[key]).map(value => String(value || '').trim()).filter(Boolean);
+    return [...new Set(values)].join(' / ');
+  }
+
   function sessionConstellation(session, index, totalSessions) {
     const section = document.createElement('section'); section.className = 'session-constellation';
     const heading = document.createElement('h4'), meta = document.createElement('p');
@@ -232,7 +237,9 @@
     const canvas = window.ArbatConstellation && window.ArbatConstellation.createCanvas({
       arrows: session.arrows,
       date: session.date,
-      sessionType: session.sessionType
+      sessionType: session.sessionType,
+      shootingDistance: sessionMeasurement(session, 'shootingDistance'),
+      targetSize: sessionMeasurement(session, 'targetSize')
     });
     if (canvas) {
       canvas.className = 'session-constellation-canvas';
