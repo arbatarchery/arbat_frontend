@@ -448,7 +448,7 @@
     const arrows=constellationArrows();
     if(!arrows.length)return false;
     const shootingDistance=constellationMeasurement('shootingDistance'),targetSize=constellationMeasurement('targetSize');
-    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:state.date,sessionType:state.sessionType,shootingDistance,targetSize});
+    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:state.date,sessionType:state.sessionType,shootingDistance,targetSize,rounds:state.completed.filter(e=>(e.arrows||[]).length).length+(state.current.length?1:0),arrowsPerEnd:state.arrowsPerEnd});
     if(sharedCanvas){
       sharedCanvas.toBlob(blob=>{
         if(!blob)return;
@@ -459,203 +459,10 @@
       },'image/png');
       return true;
     }
-    const visible=arrows.filter(a=>a.label!=='M'&&Number.isFinite(a.x)&&Number.isFinite(a.y));
-    const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-    canvas.width=1080;canvas.height=1350;
-    const W=canvas.width,H=canvas.height;
-    const cx=540,cy=650,targetR=466;
-
-    // Fondo y cabecera, siguiendo la composición de la lámina de referencia.
-    ctx.fillStyle='#fffdf9';ctx.fillRect(0,0,W,H);
-    ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    ctx.fillStyle='#11131a';ctx.font='500 51px Arial, sans-serif';
-    ctx.fillText('CONSTELACIÓN DE FLECHAS',cx,102);
-    const date=new Date(`${state.date}T12:00:00`);
-    const months=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-    const dateText=`${String(date.getDate()).padStart(2,'0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-    ctx.fillStyle='#68727a';ctx.font='400 22px Arial, sans-serif';
-    ctx.fillText(`Sesión de entrenamiento · ${dateText}`,cx,140);
-    const measurements=[];
-    if(shootingDistance)measurements.push(`Distancia: ${shootingDistance} m`);
-    if(targetSize)measurements.push(`Diana: ${targetSize} cm`);
-    if(measurements.length){ctx.fillStyle='#4d5660';ctx.font='600 20px Arial, sans-serif';ctx.fillText(measurements.join(' · '),cx,172);}
-
-    // Pequeños elementos dorados exteriores.
-    ctx.strokeStyle='rgba(201,157,68,.34)';ctx.lineWidth=1.2;
-    [260,330,400,470].forEach(r=>{
-      ctx.beginPath();ctx.arc(cx,cy,r+62,Math.PI*1.12,Math.PI*1.86);ctx.stroke();
-      ctx.beginPath();ctx.arc(cx,cy,r+62,Math.PI*1.88,Math.PI*2.48);ctx.stroke();
-    });
-    [[58,295],[965,328],[69,1010],[958,970]].forEach(([x,y])=>{
-      ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle='rgba(201,157,68,.42)';ctx.fill();
-    });
-
-    // Diana con sombra suave y anillos concéntricos.
-    ctx.save();
-    ctx.shadowColor='rgba(0,0,0,.24)';ctx.shadowBlur=30;ctx.shadowOffsetY=14;
-    ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.fillStyle='#66686a';ctx.fill();
-    ctx.restore();
-
-    // Base más oscura que la V-1.4: la temperatura debe iluminar la diana,
-    // no blanquearla. Las zonas siguen la proporción visual de la maqueta.
-    const zoneRings=[1,.90,.66,.40,.19,0];
-    const zoneFills=['#505256','#090b0e','#043f62','#861124','#746b22'];
-    for(let i=0;i<zoneFills.length;i++){
-      const r=targetR*zoneRings[i];
-      ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.fillStyle=zoneFills[i];ctx.fill();
-    }
-    // Aros finos independientes de las zonas de color, como en la maqueta.
-    [.90,.70,.60,.50,.40,.30,.20,.10].forEach(ratio=>{
-      ctx.beginPath();ctx.arc(cx,cy,targetR*ratio,0,Math.PI*2);
-      ctx.strokeStyle='rgba(15,18,20,.72)';ctx.lineWidth=1.15;ctx.stroke();
-    });
-    ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);
-    ctx.strokeStyle='rgba(15,18,20,.72)';ctx.lineWidth=1.3;ctx.stroke();
-
-    // Transformación de las coordenadas de la diana a la lámina.
-    const pts=visible.map(a=>({
-      x:cx+(a.x-50)/OUTER_R*targetR,
-      y:cy+(a.y-50)/OUTER_R*targetR
-    }));
-
-    // Mapa de calor: siempre recortado al área de la diana. Las flechas aisladas
-    // generan azul; la acumulación progresiva pasa a rojo y amarillo.
-    if(pts.length){
-      const hw=500,hh=500,heat=document.createElement('canvas');
-      heat.width=hw;heat.height=hh;
-      const hctx=heat.getContext('2d'), image=hctx.createImageData(hw,hh);
-      const sigma=28, values=new Float32Array(hw*hh);let maxDensity=0;
-      for(let py=0;py<hh;py++){
-        const yy=cy-targetR+(py/(hh-1))*targetR*2;
-        for(let px=0;px<hw;px++){
-          const xx=cx-targetR+(px/(hw-1))*targetR*2;
-          let d=0;
-          for(const p of pts){
-            const dx=xx-p.x,dy=yy-p.y;
-            d+=Math.exp(-(dx*dx+dy*dy)/(2*sigma*sigma));
-          }
-          const idx=py*hw+px;values[idx]=d;maxDensity=Math.max(maxDensity,d);
-        }
-      }
-      if(maxDensity>0){
-        for(let py=0;py<hh;py++)for(let px=0;px<hw;px++){
-          const idx=py*hw+px,t=values[idx]/maxDensity;
-          if(t<.028)continue;
-          const q=Math.min(1,Math.pow(t,.68));
-          let r,g,b,a;
-          // Paleta eléctrica inspirada en la maqueta: azul ultrabrillante -> magenta -> rojo -> amarillo.
-          if(q<.24){
-            const u=q/.24; r=0+8*u; g=38+42*u; b=255;
-          }else if(q<.46){
-            const u=(q-.24)/.22; r=8+232*u; g=80-10*u; b=255-18*u;
-          }else if(q<.70){
-            const u=(q-.46)/.24; r=240+15*u; g=70-48*u; b=237-150*u;
-          }else{
-            const u=(q-.70)/.30; r=255; g=22+225*u; b=87-75*u;
-          }
-          const alpha=Math.round(255*Math.pow(q,.58));
-          const k=idx*4;image.data[k]=r;image.data[k+1]=g;image.data[k+2]=b;image.data[k+3]=alpha;
-        }
-        hctx.putImageData(image,0,0);
-        ctx.save();ctx.beginPath();ctx.arc(cx,cy,targetR,0,Math.PI*2);ctx.clip();
-        // Halo amplio: aumenta la luminosidad percibida sin borrar el detalle de los colores.
-        ctx.globalCompositeOperation='screen';
-        ctx.filter='blur(14px)';
-        ctx.globalAlpha=.92;
-        ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
-        ctx.filter='none';
-        ctx.globalAlpha=1;
-        ctx.drawImage(heat,cx-targetR,cy-targetR,targetR*2,targetR*2);
-        ctx.restore();ctx.globalCompositeOperation='source-over';
-      }
-    }
-
-    // Conexiones: solo entre flechas cercanas, como en la referencia.
-    for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
-      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
-      if(d<=112){
-        ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
-        ctx.strokeStyle='rgba(205,220,235,.52)';ctx.lineWidth=1.2;ctx.stroke();
-      }
-    }
-
-    // Marcadores: cada flecha queda representada por un anillo cuyo color
-    // refleja su densidad relativa respecto de las demás flechas. No se
-    // muestra numeración para conservar la lectura visual de la constelación.
-    const markerSigma=28;
-    const markerDensity=pts.map((p,i)=>{
-      let d=0;
-      for(let j=0;j<pts.length;j++){
-        if(i===j)continue;
-        const dx=p.x-pts[j].x,dy=p.y-pts[j].y;
-        d+=Math.exp(-(dx*dx+dy*dy)/(2*markerSigma*markerSigma));
-      }
-      return d;
-    });
-    const markerMax=Math.max(...markerDensity,0);
-    const heatColor=q=>{
-      q=Math.max(0,Math.min(1,q));
-      if(q<.24){
-        const u=q/.24; return [0+8*u,38+42*u,255];
-      }else if(q<.46){
-        const u=(q-.24)/.22; return [8+232*u,80-10*u,255-18*u];
-      }else if(q<.70){
-        const u=(q-.46)/.24; return [240+15*u,70-48*u,237-150*u];
-      }else{
-        const u=(q-.70)/.30; return [255,22+225*u,87-75*u];
-      }
-    };
-    pts.forEach((p,i)=>{
-      const q=markerMax>0?Math.pow(markerDensity[i]/markerMax,.68):0;
-      const [r,g,b]=heatColor(q);
-      // Los impactos de la maqueta tienen un borde casi blanco: conservamos
-      // la temperatura del color, pero elevamos mucho su luminosidad.
-      const whiteMix=.72;
-      const br=r+(255-r)*whiteMix;
-      const bg=g+(255-g)*whiteMix;
-      const bb=b+(255-b)*whiteMix;
-      const color=`rgb(${Math.round(br)} ${Math.round(bg)} ${Math.round(bb)})`;
-
-      // Halo más intenso y menos transparente, con un resplandor blanco
-      // en el núcleo para acercarse al aspecto luminoso de la maqueta.
-      ctx.save();
-      ctx.globalCompositeOperation='screen';
-      ctx.shadowColor=`rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},.95)`;
-      ctx.shadowBlur=14;ctx.globalAlpha=.98;
-      ctx.beginPath();ctx.arc(p.x,p.y,7.2,0,Math.PI*2);
-      ctx.strokeStyle=`rgba(${Math.round(br)},${Math.round(bg)},${Math.round(bb)},.96)`;ctx.lineWidth=3.0;ctx.stroke();
-      ctx.restore();
-
-      // Anillo limpio, muy brillante y tendiendo al blanco.
-      ctx.beginPath();ctx.arc(p.x,p.y,5.2,0,Math.PI*2);
-      ctx.strokeStyle='rgba(255,255,255,.98)';ctx.lineWidth=1.55;ctx.stroke();
-    });
-
-    // Estadísticas inferiores.
-    const total=arrows.reduce((sum,a)=>sum+valueOf(a),0),avg=total/arrows.length;
-    const stats=[[''+arrows.length,'FLECHAS'],[''+total,'PUNTAJE'],[avg.toFixed(2).replace('.',','),'PROMEDIO']];
-    const cols=[290,540,790];
-    ctx.strokeStyle='rgba(190,150,67,.72)';ctx.lineWidth=1.2;
-    [415,665].forEach(x=>{ctx.beginPath();ctx.moveTo(x,1138);ctx.lineTo(x,1230);ctx.stroke();});
-    stats.forEach((v,i)=>{
-      ctx.fillStyle='#11131a';ctx.font='800 42px Arial, sans-serif';ctx.fillText(v[0],cols[i],1174);
-      ctx.fillStyle='#4d5660';ctx.font='500 17px Arial, sans-serif';ctx.fillText(v[1],cols[i],1205);
-    });
-    ctx.fillStyle='#222831';ctx.font='500 18px Arial, sans-serif';ctx.fillText('arbatarchery.com',cx,1280);
-    ctx.textAlign='right';ctx.fillStyle='#697178';ctx.font='500 13px Arial, sans-serif';ctx.fillText('V-1.7',1035,1320);
-
-    if(constellationUrl)URL.revokeObjectURL(constellationUrl);
-    canvas.toBlob(b=>{
-      if(!b)return;
-      const url=URL.createObjectURL(b),previous=constellationUrl;
-      constellationUrl=url;constellationImage.src=url;
-      if(previous)URL.revokeObjectURL(previous);
-      constellationOverlay.hidden=false;
-    },'image/png');
-    return true;
+    return false;
   }
   $('constellationBtn').addEventListener('click',()=>{
+    if(!window.ArbatConstellation){$('status').textContent='No se pudo cargar el generador de constelación. Recarga la página.';return;}
     if(!drawConstellation()){$('status').textContent='Registra al menos una flecha para crear la constelación.';return;}
     $('status').textContent='Constelación creada a partir de los datos de la sesión.';
   });
@@ -735,3 +542,4 @@
   };
   ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded','buddy:user-updated'].forEach(eventName=>window.addEventListener(eventName,syncOwner));
 })();
+

@@ -1,149 +1,124 @@
 (() => {
   'use strict';
 
-  const OUTER_R = 46;
+  // Same SVG coordinate system as the interactive target: centre 50, radius 46.
+  const OUTER_R = 46, CX = 540, CY = 650, R = 466;
   const valueOf = arrow => arrow && arrow.label === 'M' ? 0 : Number(arrow && arrow.score) || 0;
+  const coordinate = value => value !== null && value !== undefined && String(value).trim() !== '' && Number.isFinite(Number(value));
 
-  function createCanvas({ arrows = [], date = '', sessionType = 'training', shootingDistance = '', targetSize = '' } = {}) {
-    if (!arrows.length) return null;
-    const visible = arrows.filter(arrow => arrow.label !== 'M' && Number.isFinite(Number(arrow.x)) && Number.isFinite(Number(arrow.y)));
-    const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+  function geometry(arrows) {
+    return arrows.filter(a => a && a.label !== 'M' && coordinate(a.x) && coordinate(a.y))
+      .map(a => ({ x: CX + (Number(a.x) - 50) / OUTER_R * R, y: CY + (Number(a.y) - 50) / OUTER_R * R }));
+  }
+
+  // Compact Gaussian KDE. Fixed bandwidth in target units keeps separated groups
+  // separate and makes density comparable across sessions, independent of score.
+  function densityAt(points, x, y, bandwidth = .055) {
+    const sigma = R * bandwidth, cutoff2 = (sigma * 3.5) ** 2;
+    let density = 0;
+    for (const p of points) {
+      const distance2 = (x - p.x) ** 2 + (y - p.y) ** 2;
+      if (distance2 <= cutoff2) density += Math.exp(-distance2 / (2 * sigma ** 2));
+    }
+    return density;
+  }
+
+  function colorAt(density) {
+    // A single isolated arrow cannot become a yellow peak through max-normalization.
+    const q = 1 - Math.exp(-density / 8);
+    const stops = [[0, 15, 70, 255], [.18, 72, 40, 220], [.36, 180, 28, 170],
+      [.55, 245, 38, 65], [.74, 255, 125, 20], [.9, 255, 220, 70], [1, 255, 248, 210]];
+    let i = 1;
+    while (i < stops.length - 1 && q > stops[i][0]) i++;
+    const a = stops[i - 1], b = stops[i], t = (q - a[0]) / (b[0] - a[0]);
+    return a.slice(1).map((v, j) => Math.round(v + (b[j + 1] - v) * t));
+  }
+
+  function drawTarget(ctx, points) {
+    const fills = ['#202124', '#202124', '#08090b', '#08090b', '#06202e', '#06202e', '#320c12', '#320c12', '#322b0b', '#322b0b'];
+    fills.forEach((fill, i) => {
+      ctx.beginPath(); ctx.arc(CX, CY, R * (10 - i) / 10, 0, Math.PI * 2);
+      ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = '#44454a'; ctx.lineWidth = 1; ctx.stroke();
+    });
+    ctx.beginPath(); ctx.arc(CX, CY, R * .05, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = '16px Arial, sans-serif'; ctx.fillStyle = '#899099';
+    for (let score = 1; score <= 10; score++) {
+      const x = CX + R * (10.5 - score) / 10;
+      if (!points.some(p => Math.hypot(p.x - x, p.y - CY) < 22)) ctx.fillText(String(score), x, CY + 5);
+    }
+  }
+
+  function drawNebula(ctx, points) {
+    if (!points.length) return;
+    const size = 400, heat = document.createElement('canvas'); heat.width = heat.height = size;
+    const hctx = heat.getContext('2d'), image = hctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const xx = CX - R + (x + .5) / size * R * 2, yy = CY - R + (y + .5) / size * R * 2;
+      const density = densityAt(points, xx, yy);
+      if (density < .035) continue;
+      const i = (y * size + x) * 4, color = colorAt(density);
+      image.data[i] = color[0]; image.data[i + 1] = color[1]; image.data[i + 2] = color[2];
+      // Fine-scale KDE adds soft internal filaments only where measured density exists.
+      const fine = densityAt(points, xx, yy, .018);
+      const detail = .82 + .18 * Math.min(1, fine / Math.max(density * .3, .001));
+      image.data[i + 3] = 235 * (1 - Math.exp(-density / 4)) * detail;
+    }
+    hctx.putImageData(image, 0, 0);
+    ctx.save(); ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.clip();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.filter = 'blur(12px)'; ctx.globalAlpha = .65;
+    ctx.drawImage(heat, CX - R, CY - R, R * 2, R * 2);
+    ctx.filter = 'none'; ctx.globalAlpha = 1;
+    ctx.drawImage(heat, CX - R, CY - R, R * 2, R * 2);
+    ctx.restore();
+  }
+
+  function drawStars(ctx, points) {
+    // No jitter, clamping, merging, or synthetic marks. Even coincident arrows
+    // each receive a drawing operation at their original transformed position.
+    points.forEach(p => {
+      ctx.save(); ctx.globalCompositeOperation = 'screen';
+      const halo = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 17);
+      halo.addColorStop(0, 'rgba(230,241,255,.85)'); halo.addColorStop(1, 'rgba(130,175,255,0)');
+      ctx.fillStyle = halo; ctx.fillRect(p.x - 17, p.y - 17, 34, 34);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - 10); ctx.lineTo(p.x + 1.5, p.y - 1.5);
+      ctx.lineTo(p.x + 10, p.y); ctx.lineTo(p.x + 1.5, p.y + 1.5);
+      ctx.lineTo(p.x, p.y + 10); ctx.lineTo(p.x - 1.5, p.y + 1.5);
+      ctx.lineTo(p.x - 10, p.y); ctx.lineTo(p.x - 1.5, p.y - 1.5); ctx.closePath();
+      ctx.fillStyle = 'rgba(238,246,255,.85)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.restore();
+    });
+  }
+
+  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '' } = {}) {
+    const points = geometry(arrows), canvas = document.createElement('canvas');
     canvas.width = 1080; canvas.height = 1350;
-    const W = canvas.width, H = canvas.height, cx = 540, cy = 650, targetR = 466;
-
-    ctx.fillStyle = '#fffdf9'; ctx.fillRect(0, 0, W, H);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, 1080, 1350);
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#11131a'; ctx.font = '500 51px Arial, sans-serif';
-    ctx.fillText('CONSTELACIÓN DE FLECHAS', cx, 102);
-    const parsedDate = new Date(`${date}T12:00:00`);
-    const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    const validDate = !Number.isNaN(parsedDate.getTime());
-    const dateText = validDate ? `${String(parsedDate.getDate()).padStart(2, '0')} ${months[parsedDate.getMonth()]} ${parsedDate.getFullYear()}` : '';
-    const sessionLabel = sessionType === 'competition' || sessionType === 'Tournament' ? 'Sesión de competencia' : 'Sesión de entrenamiento';
-    ctx.fillStyle = '#68727a'; ctx.font = '400 22px Arial, sans-serif';
-    ctx.fillText(`${sessionLabel}${dateText ? ` · ${dateText}` : ''}`, cx, 140);
+    ctx.fillStyle = '#ffffff'; ctx.font = '600 55px Arial, sans-serif'; ctx.fillText('Constelación de flechas', CX, 80);
+    ctx.fillStyle = '#b8cde2'; ctx.font = '26px Arial, sans-serif';
+    ctx.fillText(['competition', 'Tournament'].includes(sessionType) ? 'Sesión de competencia' : 'Sesión de entrenamiento', CX, 120);
+    const parsed = new Date(`${date}T12:00:00`);
+    const dateText = Number.isNaN(parsed.getTime()) ? '—' : new Intl.DateTimeFormat('es-BO').format(parsed);
+    ctx.font = '23px Arial, sans-serif'; ctx.fillText(`Fecha: ${dateText}`, CX, 150);
     const measurements = [];
     if (String(shootingDistance).trim()) measurements.push(`Distancia: ${shootingDistance} m`);
     if (String(targetSize).trim()) measurements.push(`Diana: ${targetSize} cm`);
-    if (measurements.length) {
-      ctx.fillStyle = '#4d5660'; ctx.font = '600 20px Arial, sans-serif';
-      ctx.fillText(measurements.join(' · '), cx, 172);
-    }
-
-    ctx.strokeStyle = 'rgba(201,157,68,.34)'; ctx.lineWidth = 1.2;
-    [260, 330, 400, 470].forEach(radius => {
-      ctx.beginPath(); ctx.arc(cx, cy, radius + 62, Math.PI * 1.12, Math.PI * 1.86); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, radius + 62, Math.PI * 1.88, Math.PI * 2.48); ctx.stroke();
+    ctx.font = '20px Arial, sans-serif';
+    if (measurements.length) ctx.fillText(measurements.join(' · '), CX, 176, 960);
+    drawTarget(ctx, points); drawNebula(ctx, points); drawStars(ctx, points);
+    const total = arrows.reduce((sum, a) => sum + valueOf(a), 0);
+    const stats = [[rounds ?? '—', ['Rondas']], [arrowsPerEnd ?? '—', ['Flechas por', 'ronda']],
+      [arrows.length, ['Flechas totales', 'de sesión']], [(arrows.length ? total / arrows.length : 0).toFixed(2).replace('.', ','), ['Promedio']], [total, ['Puntos totales']]];
+    stats.forEach(([value, lines], i) => {
+      const x = 108 + i * 216;
+      if (i) { ctx.strokeStyle = '#29333f'; ctx.beginPath(); ctx.moveTo(i * 216, 1150); ctx.lineTo(i * 216, 1230); ctx.stroke(); }
+      ctx.fillStyle = '#ffffff'; ctx.font = '600 42px Arial, sans-serif'; ctx.fillText(String(value), x, 1184, 200);
+      ctx.fillStyle = '#b8cde2'; ctx.font = '20px Arial, sans-serif'; lines.forEach((line, j) => ctx.fillText(line, x, 1216 + j * 24));
     });
-    [[58, 295], [965, 328], [69, 1010], [958, 970]].forEach(([x, y]) => {
-      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fillStyle = 'rgba(201,157,68,.42)'; ctx.fill();
-    });
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,.24)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 14;
-    ctx.beginPath(); ctx.arc(cx, cy, targetR, 0, Math.PI * 2); ctx.fillStyle = '#66686a'; ctx.fill();
-    ctx.restore();
-
-    const zoneRings = [1, .90, .66, .40, .19];
-    const zoneFills = ['#505256', '#090b0e', '#043f62', '#861124', '#746b22'];
-    zoneFills.forEach((fill, index) => {
-      ctx.beginPath(); ctx.arc(cx, cy, targetR * zoneRings[index], 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();
-    });
-    [.90, .70, .60, .50, .40, .30, .20, .10].forEach(ratio => {
-      ctx.beginPath(); ctx.arc(cx, cy, targetR * ratio, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(15,18,20,.72)'; ctx.lineWidth = 1.15; ctx.stroke();
-    });
-    ctx.beginPath(); ctx.arc(cx, cy, targetR, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(15,18,20,.72)'; ctx.lineWidth = 1.3; ctx.stroke();
-
-    const points = visible.map(arrow => ({
-      x: cx + (Number(arrow.x) - 50) / OUTER_R * targetR,
-      y: cy + (Number(arrow.y) - 50) / OUTER_R * targetR
-    }));
-
-    if (points.length) {
-      const heatWidth = 500, heatHeight = 500, heat = document.createElement('canvas');
-      heat.width = heatWidth; heat.height = heatHeight;
-      const heatContext = heat.getContext('2d'), image = heatContext.createImageData(heatWidth, heatHeight);
-      const sigma = 28, values = new Float32Array(heatWidth * heatHeight); let maxDensity = 0;
-      for (let py = 0; py < heatHeight; py += 1) {
-        const yy = cy - targetR + py / (heatHeight - 1) * targetR * 2;
-        for (let px = 0; px < heatWidth; px += 1) {
-          const xx = cx - targetR + px / (heatWidth - 1) * targetR * 2;
-          let density = 0;
-          points.forEach(point => {
-            const dx = xx - point.x, dy = yy - point.y;
-            density += Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
-          });
-          const index = py * heatWidth + px; values[index] = density; maxDensity = Math.max(maxDensity, density);
-        }
-      }
-      if (maxDensity > 0) {
-        for (let py = 0; py < heatHeight; py += 1) for (let px = 0; px < heatWidth; px += 1) {
-          const index = py * heatWidth + px, density = values[index] / maxDensity;
-          if (density < .028) continue;
-          const q = Math.min(1, Math.pow(density, .68)); let r, g, b;
-          if (q < .24) { const u = q / .24; r = 8 * u; g = 38 + 42 * u; b = 255; }
-          else if (q < .46) { const u = (q - .24) / .22; r = 8 + 232 * u; g = 80 - 10 * u; b = 255 - 18 * u; }
-          else if (q < .70) { const u = (q - .46) / .24; r = 240 + 15 * u; g = 70 - 48 * u; b = 237 - 150 * u; }
-          else { const u = (q - .70) / .30; r = 255; g = 22 + 225 * u; b = 87 - 75 * u; }
-          const pixel = index * 4;
-          image.data[pixel] = r; image.data[pixel + 1] = g; image.data[pixel + 2] = b; image.data[pixel + 3] = 255 * Math.pow(q, .58);
-        }
-        heatContext.putImageData(image, 0, 0);
-        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, targetR, 0, Math.PI * 2); ctx.clip();
-        ctx.globalCompositeOperation = 'screen'; ctx.filter = 'blur(14px)'; ctx.globalAlpha = .92;
-        ctx.drawImage(heat, cx - targetR, cy - targetR, targetR * 2, targetR * 2);
-        ctx.filter = 'none'; ctx.globalAlpha = 1;
-        ctx.drawImage(heat, cx - targetR, cy - targetR, targetR * 2, targetR * 2);
-        ctx.restore(); ctx.globalCompositeOperation = 'source-over';
-      }
-    }
-
-    for (let first = 0; first < points.length; first += 1) for (let second = first + 1; second < points.length; second += 1) {
-      if (Math.hypot(points[first].x - points[second].x, points[first].y - points[second].y) <= 112) {
-        ctx.beginPath(); ctx.moveTo(points[first].x, points[first].y); ctx.lineTo(points[second].x, points[second].y);
-        ctx.strokeStyle = 'rgba(205,220,235,.52)'; ctx.lineWidth = 1.2; ctx.stroke();
-      }
-    }
-
-    const markerSigma = 28;
-    const markerDensity = points.map((point, index) => points.reduce((density, other, otherIndex) => {
-      if (index === otherIndex) return density;
-      const dx = point.x - other.x, dy = point.y - other.y;
-      return density + Math.exp(-(dx * dx + dy * dy) / (2 * markerSigma * markerSigma));
-    }, 0));
-    const markerMax = Math.max(...markerDensity, 0);
-    const heatColor = value => {
-      const q = Math.max(0, Math.min(1, value));
-      if (q < .24) { const u = q / .24; return [8 * u, 38 + 42 * u, 255]; }
-      if (q < .46) { const u = (q - .24) / .22; return [8 + 232 * u, 80 - 10 * u, 255 - 18 * u]; }
-      if (q < .70) { const u = (q - .46) / .24; return [240 + 15 * u, 70 - 48 * u, 237 - 150 * u]; }
-      const u = (q - .70) / .30; return [255, 22 + 225 * u, 87 - 75 * u];
-    };
-    points.forEach((point, index) => {
-      const q = markerMax > 0 ? Math.pow(markerDensity[index] / markerMax, .68) : 0;
-      const [r, g, b] = heatColor(q), whiteMix = .72;
-      const bright = [r, g, b].map(channel => Math.round(channel + (255 - channel) * whiteMix));
-      ctx.save(); ctx.globalCompositeOperation = 'screen';
-      ctx.shadowColor = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},.95)`; ctx.shadowBlur = 14; ctx.globalAlpha = .98;
-      ctx.beginPath(); ctx.arc(point.x, point.y, 7.2, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(${bright[0]},${bright[1]},${bright[2]},.96)`; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
-      ctx.beginPath(); ctx.arc(point.x, point.y, 5.2, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,.98)'; ctx.lineWidth = 1.55; ctx.stroke();
-    });
-
-    const total = arrows.reduce((sum, arrow) => sum + valueOf(arrow), 0), average = total / arrows.length;
-    const stats = [[String(arrows.length), 'FLECHAS'], [String(total), 'PUNTAJE'], [average.toFixed(2).replace('.', ','), 'PROMEDIO']];
-    const columns = [290, 540, 790];
-    ctx.strokeStyle = 'rgba(190,150,67,.72)'; ctx.lineWidth = 1.2;
-    [415, 665].forEach(x => { ctx.beginPath(); ctx.moveTo(x, 1138); ctx.lineTo(x, 1230); ctx.stroke(); });
-    stats.forEach((stat, index) => {
-      ctx.fillStyle = '#11131a'; ctx.font = '800 42px Arial, sans-serif'; ctx.fillText(stat[0], columns[index], 1174);
-      ctx.fillStyle = '#4d5660'; ctx.font = '500 17px Arial, sans-serif'; ctx.fillText(stat[1], columns[index], 1205);
-    });
-    ctx.fillStyle = '#222831'; ctx.font = '500 18px Arial, sans-serif'; ctx.fillText('arbatarchery.com', cx, 1280);
-    ctx.textAlign = 'right'; ctx.fillStyle = '#697178'; ctx.font = '500 13px Arial, sans-serif'; ctx.fillText('V-1.7', 1035, 1320);
+    ctx.fillStyle = '#b8cde2'; ctx.font = '23px Arial, sans-serif'; ctx.fillText('arbatarchery.com', CX, 1290);
+    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('v1.8', CX, 1324);
     return canvas;
   }
 

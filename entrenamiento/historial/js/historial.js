@@ -238,6 +238,8 @@
       arrows: session.arrows,
       date: session.date,
       sessionType: session.sessionType,
+      rounds: Array.isArray(session.completed) ? session.completed.filter(end => (end.arrows || []).length).length + (session.current && session.current.length ? 1 : 0) : undefined,
+      arrowsPerEnd: session.arrowsPerEnd,
       shootingDistance: sessionMeasurement(session, 'shootingDistance'),
       targetSize: sessionMeasurement(session, 'targetSize')
     });
@@ -561,3 +563,4 @@
   if (window.Buddy && window.Buddy.readyPromise) window.Buddy.readyPromise.then(initializeDirectory).catch(() => {}); else initializeDirectory();
   window.ArbatTrainingHistory = { render, allSessions: localSessions, closePopover };
 })();
+
