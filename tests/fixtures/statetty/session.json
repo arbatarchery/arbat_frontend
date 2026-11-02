@@ -1,0 +1,25 @@
+{
+  "id": "legacy-session-example",
+  "date": "2026-11-01",
+  "startedAt": "2026-11-01T10:00:00.000Z",
+  "arrowsPerEnd": 3,
+  "sessionType": "competition",
+  "shootingDistance": "18",
+  "targetSize": "40",
+  "notes": "Viento, suave; \"prueba\"\nsegunda línea",
+  "owner": {"id": "buddy-user-1", "name": "Arquero de prueba", "anonymous": false},
+  "completed": [{
+    "arrows": [
+      {"label": "X", "score": 10, "x": 50, "y": 50, "recordedAt": "2026-11-01T10:00:01.000Z"},
+      {"label": "9", "score": 9, "x": 56, "y": 49, "recordedAt": "2026-11-01T10:00:02.000Z"},
+      {"label": "M", "score": 0, "recordedAt": "2026-11-01T10:00:03.000Z"}
+    ],
+    "endedAt": "2026-11-01T10:00:03.000Z",
+    "arrowLimit": 3,
+    "sessionType": "competition",
+    "shootingDistance": "18",
+    "targetSize": "40",
+    "notes": "Viento, suave; \"prueba\"\nsegunda línea"
+  }],
+  "current": []
+}

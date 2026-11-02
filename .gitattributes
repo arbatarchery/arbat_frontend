@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Byte-for-byte CSV regression fixture: retain BOM and CRLF on every checkout.
+tests/fixtures/statetty/session.csv -text whitespace=cr-at-eol
+# The generated SDK has significant end-of-line whitespace inside string literals.
+entrenamiento/js/lib/auth-client.mjs whitespace=-blank-at-eol

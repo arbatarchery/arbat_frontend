@@ -1,5 +1,6 @@
-(() => {
+(async () => {
   'use strict';
+  const localStorage=window.ArbatTrainingStorage||globalThis.localStorage;
   const MAX = 12, DEFAULT_END_SIZE = 6, MIN_VIEW_SIZE = 25, OUTER_R = 46, BAND = OUTER_R / 10, MOBILE_AIM_OFFSET_PX = 57, MOBILE_ARROW_RADIUS = 1.05, LINE_EPSILON = 1e-9;
   const localDateKey = () => {
     const d = new Date();
@@ -34,6 +35,7 @@
   };
   const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',shootingDistance:'',targetSize:'',notes:'',owner:ownerSnapshot()});
   let state = fresh(), activePointer = null, provisional = null, pendingEndTimer = 0;
+  let previousSyncSnapshot = null;
 
   const $ = id => document.getElementById(id);
   const svg = $('target'), wrap = $('targetWrap'), highlight = $('highlight'), aimCrosshair = $('aimCrosshair');
@@ -44,8 +46,15 @@
   const totalArrowCount = () => state.completed.reduce((sum,end)=>sum+(end.arrows||[]).length,0)+state.current.length;
 
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey));
-    if (saved && Array.isArray(saved.completed) && Array.isArray(saved.current)) state = saved;
+    const recovered = await window.ArbatTrainingSync?.restoreCurrent?.();
+    const saved = recovered || JSON.parse(localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey));
+    let alreadyArchived = Boolean(saved?.endedAt);
+    try { const history=JSON.parse(localStorage.getItem(historyStorageKey)||'[]');alreadyArchived=alreadyArchived||(saved?.id&&Array.isArray(history)&&history.some(s=>s.id===saved.id&&s.endedAt)); } catch (_) {}
+    if (saved && !alreadyArchived && Array.isArray(saved.completed) && Array.isArray(saved.current)) {
+      state = saved;previousSyncSnapshot=JSON.parse(JSON.stringify(saved));
+      const assigned=await window.ArbatTrainingSync?.savedAccount?.(saved.id);
+      if(assigned&&state.owner?.anonymous!==false){const current=ownerSnapshot();state.owner=!current.anonymous&&current.id===assigned?current:{id:assigned,name:'',anonymous:false};}
+    }
   } catch (_) {}
 
   // Compatibilidad con sesiones guardadas por versiones anteriores.
@@ -73,7 +82,11 @@
   };
 
   function save(){
-    try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) {}
+    const serialized=JSON.stringify(state);let legacySaved=false;
+    try { localStorage.setItem(storageKey, serialized);legacySaved=true; } catch (_) {}
+    window.ArbatTrainingSync?.capture(JSON.parse(serialized),{source:'current',legacySaved,previousSnapshot:previousSyncSnapshot});
+    previousSyncSnapshot=JSON.parse(serialized);
+    return legacySaved;
   }
 
   function pointFromClient(clientX,clientY){
@@ -332,7 +345,9 @@
     let history=[];
     try{const saved=JSON.parse(localStorage.getItem(historyStorageKey));if(Array.isArray(saved))history=saved;}catch(_){}
     history.push(archived);
-    try{localStorage.setItem(historyStorageKey,JSON.stringify(history));}catch(_){}
+    let historySaved=false;
+    try{localStorage.setItem(historyStorageKey,JSON.stringify(history));historySaved=true;}catch(_){}
+    window.ArbatTrainingSync?.capture(archived,{source:'current',legacySaved:historySaved,previousSnapshot:previousSyncSnapshot});
     window.arbatTrainingHistory=history;
     window.arbatLastCompletedSession=archived;
     window.dispatchEvent(new CustomEvent('arbat:session-ended',{detail:archived}));
@@ -560,9 +575,14 @@
   }
   const syncOwner=()=>{
     const owner=ownerSnapshot();
-    if(!owner.anonymous&&(state.owner?.anonymous!==false||state.owner?.id!==owner.id)){state.owner=owner;save();publishSessionData();updatePreviousConstellation();}
+    if(state.owner?.anonymous===false&&String(state.owner.id)!==String(owner.id)){
+      if(sessionStarted())archiveCurrentSession('account-change');else{state=fresh();save();render();}
+      return;
+    }
+    if(!owner.anonymous&&state.owner?.anonymous!==false){state.owner=owner;save();publishSessionData();updatePreviousConstellation();}
   };
   ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded','buddy:user-updated'].forEach(eventName=>window.addEventListener(eventName,syncOwner));
+  if(window.ArbatTrainingSync?.authObserved||!ownerSnapshot().anonymous)syncOwner();
 })();
 
 

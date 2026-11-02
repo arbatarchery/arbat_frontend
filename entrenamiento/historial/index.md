@@ -4,10 +4,20 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=5"
+  - "/entrenamiento/historial/css/historial.css?v=6"
+  - "/entrenamiento/css/sync.css?v=1"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
-  - "/entrenamiento/historial/js/historial.js?v=8"
+  - "/entrenamiento/js/sync-config.js?v=3"
+  - "/entrenamiento/js/sync-storage.js?v=1"
+  - "/entrenamiento/js/sync-store.js?v=5"
+  - "/entrenamiento/js/sync-engine.js?v=6"
+  - "/entrenamiento/js/sync-identity.js?v=4"
+  - "/entrenamiento/js/sync-history.js?v=2"
+  - "/entrenamiento/js/sync-captcha.js?v=3"
+  - "/entrenamiento/js/sync-bootstrap.js?v=7"
+  - "/entrenamiento/historial/js/history-activity.js?v=1"
+  - "/entrenamiento/historial/js/historial.js?v=13"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -43,6 +53,18 @@ scripts:
   </section>
 
   <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
+  <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta del respaldo</button></div>
+  <section class="history-card coach-panel" id="coachPanel" aria-labelledby="coachTitle" hidden>
+    <div class="card-heading"><div><h2 id="coachTitle">Panel de entrenadores</h2><p id="coachScope"></p></div></div>
+    <p id="coachMessage" role="status"></p>
+    <div id="coachData" hidden>
+      <article class="coach-total"><span>Flechas registradas por los arqueros en el período</span><strong id="coachArrows">—</strong><small>Según la fecha de cada flecha. Tu entrenamiento aparece en el resumen personal.</small></article>
+      <h3>Arqueros supervisados</h3>
+      <p>Las últimas sesiones y sus totales diarios se muestran aunque estén fuera del período seleccionado.</p>
+      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col">Arquero</th><th scope="col">Inicio de la última sesión</th><th scope="col">Flechas de ese día</th><th scope="col">Promedio del día</th></tr></thead><tbody id="coachRoster"></tbody></table></div>
+    </div>
+  </section>
+
   <section class="kpi-grid" aria-label="Resumen del período">
     <article class="kpi"><span>Sesiones</span><strong id="kpiSessions">0</strong></article>
     <article class="kpi"><span>Flechas</span><strong id="kpiArrows">0</strong></article>
@@ -51,7 +73,8 @@ scripts:
   </section>
 
   <section class="history-card activity-card" aria-labelledby="activityTitle">
-    <div class="card-heading"><div><h2 id="activityTitle">Calendario de actividad</h2><p>Cada fila representa una semana, de lunes a domingo. Más intensidad significa más flechas registradas.</p></div><div class="heat-legend" aria-label="Escala de actividad"><span>Menos</span><i></i><i></i><i></i><i></i><span>Más</span></div></div>
+    <div class="card-heading"><div><h2 id="activityTitle">Calendario de actividad</h2><p>Cada fila representa una semana, de lunes a domingo. Competencia en blanco, entrenamiento propio en naranja y actividad de alumnos en gris. Los puntos indican actividades adicionales del mismo día.</p></div></div>
+    <ul class="activity-kind-legend" aria-label="Tipos de actividad"><li><i class="activity-kind competition"></i>Competencia</li><li><i class="activity-kind training"></i>Entrenamiento propio</li><li id="studentActivityLegend" hidden><i class="activity-kind students"></i>Actividad de alumnos</li></ul>
     <div class="activity-scroll"><div id="activityCalendar" class="activity-calendar" role="grid" aria-label="Calendario de días con entrenamiento"></div></div>
   </section>
 
@@ -66,3 +89,5 @@ scripts:
 </div>
 
 
+
+{% include training-captcha.html %}

@@ -163,6 +163,9 @@ show_drafts: false
 # Excluir del build
 # ---------------------------------------------------------------------------
 exclude:
+  - supabase/
+  - tests/
+  - output/
   - README.md
   - CHANGELOG.md
   - Gemfile

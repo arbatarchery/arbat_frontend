@@ -1,0 +1,65 @@
+{
+  "event": "entrenamiento.andanada",
+  "module": "entrenamiento",
+  "data": {
+    "andanada": {
+      "sesionId": "legacy-session-example",
+      "usuario": {
+        "id": "buddy-user-1",
+        "name": "Arquero de prueba",
+        "anonymous": false
+      },
+      "fecha": "2026-11-01",
+      "numero": 1,
+      "iniciada": "2026-11-01T10:00:01.000Z",
+      "completada": "2026-11-01T10:00:03.000Z",
+      "cantidad": 3,
+      "total": 19,
+      "tipoSesion": "Tournament",
+      "distanciaDisparoMetros": "18",
+      "tamanoDianaCentimetros": "40",
+      "notas": "Viento, suave; \"prueba\"\nsegunda línea",
+      "flechas": [
+        {
+          "numero": 1,
+          "valor": 10,
+          "label": "X",
+          "timestamp": "2026-11-01T10:00:01.000Z",
+          "horaDeMarcado": "2026-11-01 06:00:01",
+          "reloj": "",
+          "angulo": "",
+          "radio": "0.0000",
+          "posicion": {
+            "x": 50,
+            "y": 50
+          }
+        },
+        {
+          "numero": 2,
+          "valor": 9,
+          "label": "9",
+          "timestamp": "2026-11-01T10:00:02.000Z",
+          "horaDeMarcado": "2026-11-01 06:00:02",
+          "reloj": "3 h",
+          "angulo": "80.5",
+          "radio": "0.1322",
+          "posicion": {
+            "x": 56,
+            "y": 49
+          }
+        },
+        {
+          "numero": 3,
+          "valor": 0,
+          "label": "M",
+          "timestamp": "2026-11-01T10:00:03.000Z",
+          "horaDeMarcado": "2026-11-01 06:00:03",
+          "reloj": "",
+          "angulo": "",
+          "radio": "",
+          "posicion": {}
+        }
+      ]
+    }
+  }
+}
