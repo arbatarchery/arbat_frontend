@@ -5,7 +5,7 @@ description: "Aplicación para registrar puntajes de entrenamiento de tiro con a
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/entrenamiento.css?v=8"
-  - "/entrenamiento/css/sync.css?v=3"
+  - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
   - "/entrenamiento/js/sync-config.js?v=3"
@@ -16,7 +16,7 @@ scripts:
   - "/entrenamiento/js/sync-history.js?v=2"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=7"
-  - "/entrenamiento/js/sync-ui.js?v=5"
+  - "/entrenamiento/js/sync-ui.js?v=6"
   - "/entrenamiento/js/entrenamiento.js?v=15"
 ---
 
@@ -24,7 +24,7 @@ scripts:
   <div class="heading"><h1>Registro de entrenamiento</h1><p id="date" class="date"></p></div>
   <div class="layout">
     <section class="target-panel" aria-label="Diana interactiva">
-      <button id="syncStatusButton" class="sync-status-button" type="button" data-color="gray" aria-label="Ver estado del respaldo" aria-haspopup="dialog" aria-controls="syncStatusDialog" aria-expanded="false"></button>
+      <button id="syncStatusButton" class="sync-status-button" type="button" data-color="gray" aria-label="Ver estado de la nube" aria-haspopup="dialog" aria-controls="syncStatusDialog" aria-expanded="false"></button>
       <div class="live-score" aria-live="polite"><span class="label">Flecha actual</span><strong id="currentScore">—</strong></div>
       <div class="target-wrap" id="targetWrap">
         <svg id="target" viewBox="0 0 100 100" role="img" aria-label="Diana olímpica interactiva">
@@ -101,7 +101,7 @@ scripts:
 
   <dialog id="syncStatusDialog" class="sync-dialog" aria-labelledby="syncStateTitle" aria-describedby="syncStateDescription">
     <h2 id="syncStateTitle">Guardado en este dispositivo</h2>
-    <p id="syncStateDescription">El respaldo remoto está desactivado.</p>
+    <p id="syncStateDescription">El guardado en la nube está desactivado.</p>
     <dl class="sync-details">
       <div><dt>Cambios pendientes</dt><dd id="syncPendingCount">0</dd></div>
       <div><dt>Guardado local</dt><dd id="syncLocalSaved">Sin confirmar todavía</dd></div>
@@ -110,13 +110,13 @@ scripts:
     </dl>
     <h3>¿Qué significa cada color?</h3>
     <ul class="sync-legend">
-      <li><span class="sync-swatch" data-color="green" aria-hidden="true"></span><span><strong>Verde:</strong> guardado local y respaldo confirmados.</span></li>
+      <li><span class="sync-swatch" data-color="green" aria-hidden="true"></span><span><strong>Verde:</strong> guardado local y en la nube confirmados.</span></li>
       <li><span class="sync-swatch" data-color="yellow" aria-hidden="true"></span><span><strong>Amarillo:</strong> cambios pendientes, sin conexión o sesión por confirmar.</span></li>
       <li><span class="sync-swatch" data-color="red" aria-hidden="true"></span><span><strong>Rojo:</strong> un error requiere atención. Revisa los detalles del guardado.</span></li>
-      <li><span class="sync-swatch" data-color="gray" aria-hidden="true"></span><span><strong>Gris:</strong> respaldo desactivado o todavía sin confirmaciones.</span></li>
+      <li><span class="sync-swatch" data-color="gray" aria-hidden="true"></span><span><strong>Gris:</strong> guardado en la nube desactivado o todavía sin confirmaciones.</span></li>
       <li><span class="sync-swatch" data-color="blue" aria-hidden="true"></span><span><strong>Celeste:</strong> enviando, importando o asignando datos a tu cuenta.</span></li>
     </ul>
-    <div class="sync-dialog-actions"><button id="syncRetry" type="button" class="btn btn-accent" disabled>Reintentar guardado y respaldo</button><button id="syncClose" type="button" class="btn btn-secondary">Cerrar</button></div>
+    <div class="sync-dialog-actions"><button id="syncRetry" type="button" class="btn btn-accent" disabled>Reintentar guardado y envío a la nube</button><button id="syncClose" type="button" class="btn btn-secondary">Cerrar</button></div>
   </dialog>
   {% include training-captcha.html %}
 

@@ -3,7 +3,7 @@ const require=createRequire(import.meta.url),{Store}=require('../../entrenamient
 const principal='a1000000-0000-4000-8000-000000000001',other='a1000000-0000-4000-8000-000000000002',owner='a1000000-0000-4000-8000-000000000003';
 const identity={principalId:principal,accountKey:'Buddy-A',supabaseToken:'fake-token',buddyToken:'fake-buddy'},accepted={status:'accepted',owner_id:owner,replayed:false,sessions_claimed:3};
 test('server-confirmed claims survive reload/replay without counting the same principal twice',async()=>{
- const indexedDB=new IDBFactory();let store=new Store({indexedDB});const first=await store.confirmClaim(identity,accepted);assert.equal(first.sessionsClaimed,3);assert.match(claimMessage(first,'Buddy-A'),/3 sesiones ya respaldadas/);await store.close();
+ const indexedDB=new IDBFactory();let store=new Store({indexedDB});const first=await store.confirmClaim(identity,accepted);assert.equal(first.sessionsClaimed,3);assert.match(claimMessage(first,'Buddy-A'),/3 sesiones ya guardadas en la nube/);await store.close();
  store=new Store({indexedDB});try{const replay=await store.confirmClaim(identity,{...accepted,replayed:true,sessions_claimed:0});assert.equal(replay.sessionsClaimed,3);const another=await store.confirmClaim({...identity,principalId:other},{...accepted,sessions_claimed:2});assert.equal(another.sessionsClaimed,5);assert.equal((await store.confirmClaim(identity,{...accepted,replayed:true,sessions_claimed:0})).sessionsClaimed,5);}finally{await store.close();}
 });
 test('unknown replay count stays unknown and is never inferred from local records',async t=>{
