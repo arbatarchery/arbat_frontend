@@ -93,7 +93,7 @@
     else if(status.pending){const future=(await this.store.readAll('operations')).filter(o=>o.state!=='blocked'&&o.nextAttemptAt>this.now()).map(o=>o.nextAttemptAt);if(future.length)this.schedule(Math.min(...future)-this.now());}
     return await this.emit(status.issues.length||status.blocked?'error':status.pending?'pending':status.lastConfirmedAt?'synced':'idle');
    }catch(error){
-    if(['captcha_required','auth_configuration_required','auth_recovery_required','principal_changed','buddy_auth_required','auth_changed'].includes(error?.code))return await this.emit('auth_required',error.code);
+    if(['anonymous_signin_failed','captcha_rejected','anonymous_signin_rate_limited','anonymous_signin_disabled','captcha_required','auth_configuration_required','auth_recovery_required','principal_changed','buddy_auth_required','auth_changed'].includes(error?.code))return await this.emit('auth_required',error.code);
     this.schedule(5000);return await this.emit('error','sync_unavailable');
    }finally{await this.store.releaseLease(this.owner);}
   }

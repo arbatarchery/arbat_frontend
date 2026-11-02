@@ -1,0 +1,16 @@
+/* Solo la página aislada: exterior claro, tarjetas originales oscuras. */
+body{background:#fff;color:#111}
+.preview-note{background:#f0f3f5;color:#17212c;border-bottom:1px solid #d8dee4}
+.preview-note button{min-height:44px;padding:8px 12px;border:1px solid #687782;border-radius:8px;background:#fff;color:#111;cursor:pointer}
+#previewBuddyForm:not([hidden]){display:flex;flex-direction:column;gap:8px;max-width:360px;margin:10px 0}
+#previewBuddyEmail{width:100%;min-height:44px;font:inherit;background:#fff;color:#111;border:1px solid #687782;border-radius:6px;padding:8px}
+.app-entrenamiento{--paper:#fff}
+.app-entrenamiento .heading,.app-entrenamiento .heading h1{color:#111}
+.app-entrenamiento .heading .date{color:#38434d}
+.app-entrenamiento .sync-desktop-status{color:#111}
+.app-entrenamiento .sync-desktop-details{color:#38434d}
+.app-entrenamiento .sync-desktop-status:hover{background:#00000006}
+.app-entrenamiento .sync-desktop-status:focus-visible{outline-color:#111}
+.app-entrenamiento .sync-status-button:focus-visible{outline-color:#111}
+/* La línea gris necesita contraste también sobre blanco. */
+.app-entrenamiento [data-color="gray"]{--sync-color:#637381}
