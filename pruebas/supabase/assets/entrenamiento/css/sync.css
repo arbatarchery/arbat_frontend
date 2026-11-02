@@ -1,0 +1,31 @@
+/* Barra fuera del recuadro de diana. El área táctil ocupa solo el espacio entre paneles. */
+.app-entrenamiento .sync-status-button{display:none}
+.app-entrenamiento [data-color="green"]{--sync-color:#42cf89}
+.app-entrenamiento [data-color="yellow"]{--sync-color:#ffd257}
+.app-entrenamiento [data-color="red"]{--sync-color:#ff8076}
+.app-entrenamiento [data-color="gray"]{--sync-color:#9aa8b6}
+.app-entrenamiento [data-color="blue"]{--sync-color:#70d4f8}
+.app-entrenamiento .sync-dialog{width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);box-sizing:border-box;padding:22px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px #0008;font:inherit;overflow:auto}
+.app-entrenamiento .sync-dialog::backdrop{background:#060d16b8}
+.app-entrenamiento .sync-dialog>p{margin:10px 0 18px;color:var(--muted);line-height:1.5}
+.app-entrenamiento .sync-dialog h3{font-size:1rem;margin:18px 0 12px;color:var(--ink)}
+.app-entrenamiento .sync-details{margin:0;display:grid;gap:9px}
+.app-entrenamiento .sync-details>div{display:flex;justify-content:space-between;gap:16px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+.app-entrenamiento .sync-details dt{color:var(--muted);font-size:.85rem}
+.app-entrenamiento .sync-details dd{margin:0;text-align:right;font-size:.85rem;font-weight:700;max-width:58%}
+.app-entrenamiento .sync-legend{display:grid;gap:12px;list-style:none;margin:0;padding:0;font-size:.85rem;line-height:1.45}
+.app-entrenamiento .sync-legend li{display:flex;align-items:flex-start;gap:10px}
+.app-entrenamiento .sync-swatch{width:24px;height:5px;flex:0 0 24px;margin-top:.55em;background:var(--sync-color)}
+.app-entrenamiento .sync-dialog-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.app-entrenamiento .sync-dialog-actions .btn{flex:1 1 130px}
+#trainingCaptchaDialog{max-width:min(420px,calc(100vw - 32px));box-sizing:border-box;padding:22px;border:1px solid #596672;border-radius:16px;background:#202831;color:#edf2f6;font:inherit}
+#trainingCaptchaDialog::backdrop{background:#060d16b8}
+#trainingCaptchaDialog h2{font-size:1.2rem}
+#trainingCaptchaDialog p{font-size:.9rem;line-height:1.5;margin-bottom:16px}
+#trainingCaptchaDialog button{min-height:44px;padding:8px 18px;margin-top:16px;border:0;border-radius:10px;background:#e8edf0;color:#102a43;font:inherit;cursor:pointer}
+@media(max-width:859px){
+ .app-entrenamiento .target-panel{margin-bottom:28px}
+ .app-entrenamiento .sync-status-button{display:block;position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);width:30vw;height:44px;margin:0;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;z-index:5;touch-action:manipulation}
+ .app-entrenamiento .sync-status-button::before{content:"";display:block;position:absolute;top:0;left:0;width:100%;height:5px;background:var(--sync-color,#9aa8b6)}
+ .app-entrenamiento .sync-status-button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+}
