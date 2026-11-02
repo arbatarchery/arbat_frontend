@@ -5,10 +5,11 @@
   const HISTORY_KEY = 'arbat-training-history';
   const CURRENT_KEY = 'arbat-training-current';
   const ANONYMOUS_DEVICE_KEY = 'arbat-anonymous-device-id';
-  let historyError=null,historyController=null;
+  let historyError=null,historyFailure=null,historyController=null;
   const $ = id => document.getElementById(id);
   const state = {
     ownUserId: null,
+    verifiedRole:null,
     coaching: null,
     directoryLoaded: false,
     privileged: false,
@@ -140,10 +141,20 @@
     return sessions;
   }
 
+  function safeHistoryDiagnostic(error) {
+    const codes=['history_unavailable','history_timeout','history_network_error','history_invalid_json','history_disabled','auth_required','auth_changed','buddy_auth_required','buddy_bridge_unavailable','captcha_required','rate_limited','history_changed','history_response_limit','history_cache_limit','invalid_history_page','invalid_history_metadata','invalid_history_detail','invalid_history_parent','invalid_history_cursor'];
+    const code=codes.includes(error?.code)?error.code:error?.name==='TimeoutError'?'history_timeout':error?.name==='TypeError'?'history_processing_error':'history_unavailable';
+    const parts=[code];
+    if(['history.list','history.detail'].includes(error?.historyAction))parts.push(error.historyAction);
+    if(['ends','arrows'].includes(error?.historyCollection))parts.push(error.historyCollection);
+    if(Number.isInteger(error?.httpStatus)&&error.httpStatus>=400&&error.httpStatus<=599)parts.push('HTTP '+error.httpStatus);
+    return parts.join(' · ');
+  }
+
   async function loadSessions(range, user, signal) {
     const sync=window.ArbatTrainingSync;
     if(sync?.historyEnabled&&window.ArbatSyncHistory){
-      let local=await localSessionsWithBackup(user);const own=currentUser();historyError=null;
+      let local=await localSessionsWithBackup(user);const own=currentUser();historyError=null;historyFailure=null;
       if(!rawCurrentUser()&&user.id!==own.id)return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
       try{
         const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,targetSubject:user.id===own.id?null:user.id,signal});
@@ -151,7 +162,7 @@
         const mappings=(await sync.localSessions()).map(r=>({...r,normalized:normalizeSession(r.snapshot)}));
         const merged=window.ArbatSyncHistory.merge(local,remote,mappings).map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
         Object.defineProperty(merged,'historySource',{value:'mixed'});return merged;
-      }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';local=await localSessionsWithBackup(user);return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);}
+      }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);local=await localSessionsWithBackup(user);return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);}
     }
     const provider = window.Buddy && window.Buddy.trainingHistory;
     if (provider && typeof provider.getSessions === 'function') {
@@ -180,6 +191,7 @@
   function renderIdentity(user, source = 'local') {
     $('athleteName').textContent = user.name;
     $('athleteAvatar').textContent = initials(user.name);
+    if($('athleteRole'))$('athleteRole').textContent=user.id===currentUser().id&&rawCurrentUser()&&window.ArbatTrainingSync?.historyEnabled?({superadmin:'SuperAdmin',admin:'Administrador',coach:'Entrenador',user:'Arquero',unknown:'Acceso sin confirmar'}[state.verifiedRole]||'Verificando acceso…'):'Arquero';
     $('dataScope').textContent = source === 'remote'
       ? `Historial de ${user.name} guardado en arbat.`
       : source==='mixed'?`Historial en la nube de ${user.name}, incluidos los cambios locales pendientes.`:`Sesiones de ${user.name} guardadas en este dispositivo.`;
@@ -604,9 +616,10 @@
 
   async function loadCoaching(range,signal,sequence) {
     const sync=window.ArbatTrainingSync;if(!sync?.historyEnabled)return;
-    clearCoaching();if(!rawCurrentUser())return;
+    clearCoaching();state.verifiedRole=null;if(!rawCurrentUser())return;
     try{
       const context=await sync.historyContext({signal});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
+      state.verifiedRole=['user','coach','admin','superadmin'].includes(context.role)?context.role:'unknown';
       if(!context.can_coach){state.selectedUser=currentUser();return;}
       const overview=await sync.coachOverview({from:range.startKey,to:range.endKey,signal});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
       state.coaching=overview;state.privileged=true;
@@ -615,7 +628,7 @@
       renderCoaching(overview);
     }catch(error){
       if(signal.aborted||sequence!==state.renderSequence)return;
-      state.selectedUser=currentUser();clearCoaching();$('coachPanel').hidden=false;
+      state.verifiedRole=state.verifiedRole||'unknown';state.selectedUser=currentUser();clearCoaching();$('coachPanel').hidden=false;
       $('coachMessage').textContent='No se pudo consultar el acceso de entrenador o las estadísticas. Reintenta la consulta de la nube.';
     }
   }
@@ -635,6 +648,8 @@
     renderIdentity(user,sessions.historySource||(!window.ArbatTrainingSync?.historyEnabled&&provider?'remote':'local'));renderKpis(sessions);renderCalendar(days);renderChart('volumeChart',days,'volume');renderChart('averageChart',days,'average');renderSessions(sessions);
     if($('historySyncNotice')){
       $('historySyncNotice').hidden=!historyError&&$('coachPanel').hidden;
+      $('historySyncDiagnostic').hidden=!historyFailure;
+      $('historySyncDiagnostic').textContent=historyFailure?'Diagnóstico: '+historyFailure:'';
       if(!historyError&&state.coaching)$('historySyncNotice').hidden=true;
       $('historySyncMessage').textContent=historyError==='captcha_required'?'Confirma la comprobación para consultar la nube. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'La consulta a la nube alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta de la nube. Se muestran los datos locales.';
     }
@@ -648,7 +663,7 @@
   window.addEventListener('resize', closePopover);
   ['buddy:auth-state-changed', 'buddy:auth-ready', 'buddy:user-loaded', 'buddy:user-updated'].forEach(eventName => window.addEventListener(eventName, () => {
     const signedUser = currentUser();
-    if(state.ownUserId!==signedUser.id){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];clearCoaching();}
+    if(state.ownUserId!==signedUser.id){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
     if (!state.selectedUser || (state.selectedUser.anonymous && rawCurrentUser()) || (!rawCurrentUser() && !state.selectedUser.anonymous)) state.selectedUser = signedUser;
     initializeDirectory(); render();
   }));

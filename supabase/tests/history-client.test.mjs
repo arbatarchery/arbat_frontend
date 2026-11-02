@@ -51,3 +51,12 @@ test('remote reader invokes fetch without a Reader receiver, as required by brow
  const api=reader(async function(_url,init){assert.equal(this,undefined);return response(JSON.parse(init.body));});
  assert.equal((await get(api)).sessions.length,1);
 });
+
+test('history failures identify the failed operation without exposing server response bodies',async()=>{
+ const api=reader(async(_url,init)=>{const body=JSON.parse(init.body);return body.action==='history.list'?response(body):Response.json({error:'private-token-and-session-data'},{status:503});});
+ await assert.rejects(get(api),e=>e.code==='history_unavailable'&&e.httpStatus===503&&e.historyAction==='history.detail'&&e.historyCollection==='ends'&&!e.message.includes('private-token'));
+});
+test('invalid history JSON has a distinct safe diagnosis',async()=>{
+ const api=reader(async()=>new Response('not JSON: private-token'));
+ await assert.rejects(get(api),e=>e.code==='history_invalid_json'&&e.historyAction==='history.list'&&!e.message.includes('private-token'));
+});

@@ -4,7 +4,7 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=6"
+  - "/entrenamiento/historial/css/historial.css?v=7"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
@@ -13,11 +13,11 @@ scripts:
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=4"
-  - "/entrenamiento/js/sync-history.js?v=2"
+  - "/entrenamiento/js/sync-history.js?v=3"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=7"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=14"
+  - "/entrenamiento/historial/js/historial.js?v=15"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -29,7 +29,7 @@ scripts:
     </div>
     <div class="athlete" id="athleteIdentity" aria-live="polite">
       <span class="athlete-avatar" id="athleteAvatar" aria-hidden="true">—</span>
-      <span><small>Arquero</small><strong id="athleteName">Cargando…</strong></span>
+      <span><small id="athleteRole">Arquero</small><strong id="athleteName">Cargando…</strong></span>
     </div>
   </header>
 
@@ -53,7 +53,7 @@ scripts:
   </section>
 
   <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
-  <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta de la nube</button></div>
+  <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><p id="historySyncDiagnostic" hidden></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta de la nube</button></div>
   <section class="history-card coach-panel" id="coachPanel" aria-labelledby="coachTitle" hidden>
     <div class="card-heading"><div><h2 id="coachTitle">Panel de entrenadores</h2><p id="coachScope"></p></div></div>
     <p id="coachMessage" role="status"></p>
