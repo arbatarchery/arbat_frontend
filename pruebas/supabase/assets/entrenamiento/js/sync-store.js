@@ -158,6 +158,18 @@
    return this.transaction(['sessions'],'readonly',(tx,done)=>{const r=tx.objectStore('sessions').get(active.key);r.onsuccess=()=>done(r.result?clone(r.result):null);});
   }
   async assignAccount(keys,principalId,accountKey){if(!accountKey)return;return this.transaction(['sessions'],'readwrite',(tx,done)=>{const store=tx.objectStore('sessions');for(const key of keys){const r=store.get(key);r.onsuccess=()=>{const row=r.result;if(row&&!row.accountKey&&(!row.principalId||row.principalId===principalId))store.put({...row,accountKey});};}done(true);});}
+  async confirmClaim(identity,result){
+   if(!identity?.accountKey||!UUID.test(identity.principalId||'')||result?.status!=='accepted'||!UUID.test(result.owner_id||'')||!Number.isSafeInteger(result.sessions_claimed)||result.sessions_claimed<0||result.sessions_claimed>10000||typeof result.replayed!=='boolean')return null;
+   const accountKey=String(identity.accountKey),key='claim-confirmation:'+JSON.stringify([accountKey,identity.principalId]);
+   await this.changeMeta(key,previous=>{
+    const same=previous?.ownerId===result.owner_id;
+    return {accountKey,principalId:identity.principalId,ownerId:result.owner_id,
+     sessionsClaimed:result.replayed?(same?previous.sessionsClaimed:null):result.sessions_claimed,
+     confirmedAt:this.now()};
+   });
+   const receipts=(await this.readAll('meta')).filter(row=>row.key.startsWith('claim-confirmation:')).map(row=>row.value).filter(row=>row.accountKey===accountKey&&row.ownerId===result.owner_id);
+   return {accountKey,ownerId:result.owner_id,sessionsClaimed:receipts.every(row=>Number.isSafeInteger(row.sessionsClaimed))?receipts.reduce((sum,row)=>sum+row.sessionsClaimed,0):null,confirmedAt:Math.max(...receipts.map(row=>row.confirmedAt))};
+  }
   async acknowledge(key,id,result){return this.update(key,(record,ops)=>{
    const op=ops.find(o=>o.operation_id===id);if(!record||!op)return {result:false};
    if(result.status!=='accepted'||!Number.isSafeInteger(result.revision)||result.revision!==op.envelope?.base_revision+1)throw new Error('invalid_ack');

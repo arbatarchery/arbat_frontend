@@ -16,10 +16,10 @@
   constructor({store,transport,identityProvider=async()=>null,enabled=false,navigator=globalThis.navigator,events=globalThis,crypto=globalThis.crypto,
    now=Date.now,random=Math.random,onState=()=>{},setTimer=(...args)=>setTimeout(...args),clearTimer=id=>clearTimeout(id)}={}){
    Object.assign(this,{store,transport,identityProvider,enabled,navigator,events,now,random,onState,setTimer,clearTimer});
-   this.owner=crypto?.randomUUID?.();this.running=false;this.timer=null;this.claimed=null;this.stopped=false;
+   this.owner=crypto?.randomUUID?.();this.running=false;this.timer=null;this.claimed=null;this.claimConfirmation=null;this.stopped=false;
    this.wake=()=>this.schedule(0);this.visible=()=>{if(!globalThis.document||globalThis.document.visibilityState==='visible')this.schedule(0);};
   }
-  async emit(state,error=null){const status=await this.store.status();const value={...status,state,error};this.onState(value);return value;}
+  async emit(state,error=null){const status=await this.store.status();const value={...status,state,error,claim:this.claimConfirmation};this.onState(value);return value;}
   start(){if(!this.enabled)return;for(const event of ['online','buddy:auth-state-changed','buddy:auth-ready'])this.events?.addEventListener?.(event,this.wake);this.events?.addEventListener?.('visibilitychange',this.visible);this.schedule(0);}
   stop(){this.stopped=true;if(this.timer!==null)this.clearTimer(this.timer);this.timer=null;for(const event of ['online','buddy:auth-state-changed','buddy:auth-ready'])this.events?.removeEventListener?.(event,this.wake);this.events?.removeEventListener?.('visibilitychange',this.visible);}
   schedule(delay=0){if(!this.enabled||this.stopped)return;if(this.timer!==null)this.clearTimer(this.timer);this.timer=this.setTimer(()=>{this.timer=null;this.flush().catch(()=>{this.onState({state:'error',error:'local_storage_unavailable'});});},Math.max(0,delay));}
@@ -52,8 +52,9 @@
     const records=(await this.store.readAll('sessions')).sort((a,b)=>Number(Boolean(a.snapshot?.endedAt))-Number(Boolean(b.snapshot?.endedAt))||a.priority-b.priority||a.capturedAt-b.capturedAt);
     const eligible=records.filter(r=>!r.issue&&(!r.accountKey||r.accountKey===identity.accountKey)&&(!r.principalId||r.principalId===identity.principalId));
     if(identity.accountKey&&this.claimed!==signature&&eligible.length){
-     await this.emit('syncing');const result=await this.transport.claim(identity);
+     await this.emit('claiming');const result=await this.transport.claim(identity);
      if(result?.status!=='accepted'){if(result?.status==='rate_limited')this.schedule(60000);return await this.emit('error',result?.status||'claim_failed');}
+     this.claimConfirmation=await this.store.confirmClaim(identity,result);
      await this.store.assignAccount(eligible.map(r=>r.key),identity.principalId,identity.accountKey);
      this.claimed=signature;
     }

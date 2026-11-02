@@ -14,3 +14,5 @@ body{background:#fff;color:#111}
 .app-entrenamiento .sync-status-button:focus-visible{outline-color:#111}
 /* La línea gris necesita contraste también sobre blanco. */
 .app-entrenamiento [data-color="gray"]{--sync-color:#637381}
+
+.app-entrenamiento .sync-claim-notice{color:#111}
