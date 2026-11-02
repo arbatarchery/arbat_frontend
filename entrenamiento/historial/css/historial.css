@@ -31,6 +31,6 @@
 .coach-panel[hidden],#coachData[hidden]{display:none}.coach-panel h3{color:#fff;font-size:1rem;margin:18px 0 5px}.coach-total{display:flex;flex-direction:column;gap:5px;padding:16px;background:var(--card2);border-radius:12px}.coach-total strong{font-size:2rem;color:#fff}.coach-total small{color:var(--muted)}.coach-table-scroll{overflow-x:auto;margin-top:12px}.coach-table{width:100%;border-collapse:collapse;color:var(--ink);font-size:.85rem}.coach-table th,.coach-table td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.coach-table th{color:var(--muted)}.coach-table button{background:none;border:0;color:#ffb17a;text-decoration:underline;cursor:pointer;font:inherit;text-align:left;padding:4px 0}.coach-table button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 
 /* Exterior claro con las tarjetas originales grises. */
-.training-history{background:#fff;box-shadow:0 0 0 100vmax #fff}
+.training-history{background:#fff;box-shadow:none;clip-path:none}
 .training-history .history-header h1,.training-history .history-intro,.training-history .data-scope,.training-history #historySyncNotice{color:#111}
 .training-history .history-actions .history-button{color:#111}

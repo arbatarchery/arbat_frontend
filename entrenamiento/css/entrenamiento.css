@@ -166,7 +166,7 @@
 }
 
 /* Exterior claro; se conservan los paneles de datos y diana. */
-.app-entrenamiento{--paper:#fff}
+.app-entrenamiento{--paper:#fff;box-shadow:none;clip-path:none}
 .app-entrenamiento .heading,.app-entrenamiento .heading h1,.app-entrenamiento .sync-desktop-status,.app-entrenamiento .sync-claim-notice{color:#111}
 .app-entrenamiento .heading .date,.app-entrenamiento .sync-desktop-details{color:#38434d}
 .app-entrenamiento .sync-desktop-status:hover{background:#00000006}
