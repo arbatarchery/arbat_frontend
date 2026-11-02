@@ -38,7 +38,7 @@ try{
  await page.locator('#syncDesktopStatus').click();await page.locator('#syncRetry').click();await page.locator('#trainingCaptchaMessage').filter({hasText:'110200'}).waitFor();assert.equal(await page.locator('#trainingCaptchaDialog').evaluate(e=>e.open),true);await page.locator('#syncDesktopText').filter({hasText:'no autorizada'}).waitFor();assert.equal(signups,0);await page.locator('#trainingCaptchaDialog form button').click();await page.locator('#syncClose').click();
  await page.locator('#previewBuddyStart').click();await page.locator('#previewBuddyEmail').waitFor({state:'visible'});await page.locator('#previewBuddyEmail').fill('test@example.invalid');await page.locator('#previewBuddySend').click();
  await page.waitForFunction(()=>window.ArbatTrainingSync.lastStatus.state==='synced'&&window.ArbatTrainingSync.lastStatus.pending===0);
- assert.equal(bridge,1);assert.equal(claims,1);await page.locator('#syncClaimNotice').filter({hasText:'3 sesiones ya respaldadas'}).waitFor();assert.equal(signups,0);assert.ok(packets.flat().some(op=>op.kind==='arrow.upsert'));
+ assert.equal(bridge,1);assert.equal(claims,1);await page.locator('#syncClaimNotice').filter({hasText:'3 sesiones ya guardadas en la nube'}).waitFor();assert.equal(signups,0);assert.ok(packets.flat().some(op=>op.kind==='arrow.upsert'));
  await page.clock.fastForward(5000);assert.equal(await page.locator('#syncClaimNotice').isVisible(),true);
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('arbat:sync-state',{detail:window.ArbatTrainingSync.lastStatus})));
  await page.clock.fastForward(5000);assert.equal(await page.locator('#syncClaimNotice').isVisible(),false);
@@ -47,7 +47,7 @@ try{
  await page.locator('#finishBtn').click();await page.evaluate(()=>window.ArbatTrainingSync.settled());await page.waitForFunction(()=>window.ArbatTrainingSync.lastStatus.state==='synced'&&window.ArbatTrainingSync.lastStatus.pending===0);
  const saved=await page.evaluate(async()=>({native:JSON.parse(localStorage.getItem('arbat-training-current')),rows:(await window.ArbatTrainingSync.store.readAll('sessions')).filter(r=>r.sequence),telemetry:window.__fakeTelemetry||0,config:window.ArbatTrainingSyncConfig}));
  assert.equal(saved.native.id,'preserve-real-training');assert.equal(saved.config.storagePrefix,'arbat-supabase-domain-test-v1:');assert.equal(saved.rows.length,1);assert.ok(saved.rows.every(r=>r.accountKey==='test-only-buddy-user'));assert.equal(saved.telemetry,0);assert.equal(signups,0);assert.deepEqual(external,[]);assert.deepEqual(errors,[]);
- await page.reload();await page.waitForFunction(()=>window.ArbatTrainingSync.lastStatus.state==='synced'&&window.ArbatTrainingSync.lastStatus.pending===0);await page.locator('#syncClaimNotice').filter({hasText:'3 sesiones ya respaldadas'}).waitFor();assert.equal(claims,2);assert.equal(bridge,1);
+ await page.reload();await page.waitForFunction(()=>window.ArbatTrainingSync.lastStatus.state==='synced'&&window.ArbatTrainingSync.lastStatus.pending===0);await page.locator('#syncClaimNotice').filter({hasText:'3 sesiones ya guardadas en la nube'}).waitFor();assert.equal(claims,2);assert.equal(bridge,1);
  await page.screenshot({path:resolve('output/supabase-sync/domain-claim-confirmation.png'),fullPage:true});
  await page.evaluate(()=>{window.ArbatTrainingSync.engine.stop();window.__setTestBuddy(null);});assert.equal(await page.locator('#syncClaimNotice').isVisible(),false);
  console.log('PASS: assignment notice hides after 10 seconds; normal sync updates do not reset the timer or show it again.');

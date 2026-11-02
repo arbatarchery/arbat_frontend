@@ -5,7 +5,7 @@ description: "Resumen de sesiones, volumen de flechas y evolución del puntaje d
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/historial/css/historial.css?v=6"
-  - "/entrenamiento/css/sync.css?v=1"
+  - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
   - "/entrenamiento/js/sync-config.js?v=3"
@@ -17,7 +17,7 @@ scripts:
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=7"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=13"
+  - "/entrenamiento/historial/js/historial.js?v=14"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -53,7 +53,7 @@ scripts:
   </section>
 
   <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
-  <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta del respaldo</button></div>
+  <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta de la nube</button></div>
   <section class="history-card coach-panel" id="coachPanel" aria-labelledby="coachTitle" hidden>
     <div class="card-heading"><div><h2 id="coachTitle">Panel de entrenadores</h2><p id="coachScope"></p></div></div>
     <p id="coachMessage" role="status"></p>

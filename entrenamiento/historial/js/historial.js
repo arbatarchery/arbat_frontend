@@ -182,7 +182,7 @@
     $('athleteAvatar').textContent = initials(user.name);
     $('dataScope').textContent = source === 'remote'
       ? `Historial de ${user.name} guardado en arbat.`
-      : source==='mixed'?`Historial respaldado de ${user.name}, incluidos los cambios locales pendientes.`:`Sesiones de ${user.name} guardadas en este dispositivo.`;
+      : source==='mixed'?`Historial en la nube de ${user.name}, incluidos los cambios locales pendientes.`:`Sesiones de ${user.name} guardadas en este dispositivo.`;
   }
 
   function renderKpis(sessions) {
@@ -616,7 +616,7 @@
     }catch(error){
       if(signal.aborted||sequence!==state.renderSequence)return;
       state.selectedUser=currentUser();clearCoaching();$('coachPanel').hidden=false;
-      $('coachMessage').textContent='No se pudo consultar el acceso de entrenador o las estadísticas. Reintenta la consulta del respaldo.';
+      $('coachMessage').textContent='No se pudo consultar el acceso de entrenador o las estadísticas. Reintenta la consulta de la nube.';
     }
   }
 
@@ -636,7 +636,7 @@
     if($('historySyncNotice')){
       $('historySyncNotice').hidden=!historyError&&$('coachPanel').hidden;
       if(!historyError&&state.coaching)$('historySyncNotice').hidden=true;
-      $('historySyncMessage').textContent=historyError==='captcha_required'?'Confirma la comprobación para consultar el respaldo. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'El respaldo alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta del respaldo. Se muestran los datos locales.';
+      $('historySyncMessage').textContent=historyError==='captcha_required'?'Confirma la comprobación para consultar la nube. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'La consulta a la nube alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta de la nube. Se muestran los datos locales.';
     }
   }
 
