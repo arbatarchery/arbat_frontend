@@ -1,0 +1,68 @@
+<!doctype html><html lang="es"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba Supabase en dominio real de arbat</title><style>*{box-sizing:border-box}body{margin:0;background:#151a20;color:#edf2f6;font:16px system-ui,sans-serif}.preview-note{padding:12px 16px;background:#102a43;font-size:13px;line-height:1.5}.wrap{max-width:1140px;margin:auto;padding:16px}button{font:inherit}h3{margin:0}</style><link rel="stylesheet" href="/pruebas/supabase/assets/entrenamiento/historial/css/historial.css?v=5"><link rel="stylesheet" href="/pruebas/supabase/assets/entrenamiento/css/sync.css?v=1"><script>window.ArbatTrainingSyncConfig=Object.freeze({"enabled":true,"historyEnabled":false,"url":"https://qbtdwlcpqcsolubhhkfa.supabase.co","publishableKey":"sb_publishable_6nDhCYf2L78hhtGnzXu33Q_2rruIDTD","turnstileSiteKey":"0x4AAAAAAFvr_WFS_3ekymdO","storagePrefix":"arbat-supabase-domain-test-v1:","storeName":"arbat-training-sync-domain-test-v1"});(()=>{const prefix=window.ArbatTrainingSyncConfig.storagePrefix;try{if(!localStorage.getItem(prefix+'arbat-training-current')){const device=crypto.randomUUID();localStorage.setItem(prefix+'arbat-anonymous-device-id',device);const now=new Date();localStorage.setItem(prefix+'arbat-training-current',JSON.stringify({id:crypto.randomUUID(),date:new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz'}).format(now),timezone:'America/La_Paz',startedAt:now.toISOString(),completed:[],current:[],arrowsPerEnd:6,sessionType:'training',shootingDistance:'18',targetSize:'40',notes:'PRUEBA LOCAL SUPABASE — datos ficticios',owner:{id:'anon:'+device,name:'',anonymous:true,anonymousId:device}}));}}catch{}})();</script><script src="/pruebas/supabase/assets/test-controls/controls.js"></script></head><body><div class="preview-note">PRUEBA AISLADA · Solo datos ficticios · No utiliza tus entrenamientos habituales · Respaldo habilitado para esta vista previa.</div><section class="preview-note" aria-label="Cuenta de prueba"><button id="previewBuddyStart" type="button">Probar con Buddy</button><button id="previewBuddyLogout" type="button" hidden>Cerrar sesión Buddy</button><form id="previewBuddyForm" hidden><label>Correo de Buddy <input id="previewBuddyEmail" type="email" autocomplete="email" required></label> <button id="previewBuddySend" type="submit">Enviar enlace de acceso</button></form><p id="previewBuddyStatus" role="status" aria-live="polite">Acceso opcional para probar el respaldo con tu cuenta.</p></section><main class="wrap">
+
+<div class="training-history" id="trainingHistory">
+  <header class="history-header">
+    <div>
+      <p class="eyebrow">Entrenamiento</p>
+      <h1>Mi historial</h1>
+      <p class="history-intro">Revisa tu volumen y la evolución de tus puntajes.</p>
+    </div>
+    <div class="athlete" id="athleteIdentity" aria-live="polite">
+      <span class="athlete-avatar" id="athleteAvatar" aria-hidden="true">—</span>
+      <span><small>Arquero</small><strong id="athleteName">Cargando…</strong></span>
+    </div>
+  </header>
+
+  <section class="athlete-picker" id="athletePicker" aria-labelledby="athletePickerTitle" hidden>
+    <div><h2 id="athletePickerTitle">Usuario consultado</h2><p>Disponible para entrenadores y administradores.</p></div>
+    <div class="athlete-search">
+      <label for="athleteSearch">Buscar por nombre o identificador</label>
+      <input id="athleteSearch" type="search" role="combobox" autocomplete="off" aria-autocomplete="list" aria-controls="athleteResults" aria-expanded="false" placeholder="Escribe para buscar…">
+      <div class="athlete-results" id="athleteResults" role="listbox" hidden></div>
+      <p class="athlete-search-status" id="athleteSearchStatus" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="period-bar" aria-labelledby="periodTitle">
+    <div><h2 id="periodTitle">Período</h2><p id="periodDates">—</p></div>
+    <label for="periodSelect">Mostrar
+      <select id="periodSelect">
+        <option value="7">Semana</option><option value="30" selected>Mes</option><option value="90">3 meses</option><option value="180">6 meses</option><option value="365">1 año</option>
+      </select>
+    </label>
+  </section>
+
+  <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
+  <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta del respaldo</button></div>
+  <section class="kpi-grid" aria-label="Resumen del período">
+    <article class="kpi"><span>Sesiones</span><strong id="kpiSessions">0</strong></article>
+    <article class="kpi"><span>Flechas</span><strong id="kpiArrows">0</strong></article>
+    <article class="kpi"><span>Promedio</span><strong id="kpiAverage">—</strong><small>puntos por flecha</small></article>
+    <article class="kpi"><span>Días activos</span><strong id="kpiDays">0</strong></article>
+  </section>
+
+  <section class="history-card activity-card" aria-labelledby="activityTitle">
+    <div class="card-heading"><div><h2 id="activityTitle">Calendario de actividad</h2><p>Cada fila representa una semana, de lunes a domingo. Más intensidad significa más flechas registradas.</p></div><div class="heat-legend" aria-label="Escala de actividad"><span>Menos</span><i></i><i></i><i></i><i></i><span>Más</span></div></div>
+    <div class="activity-scroll"><div id="activityCalendar" class="activity-calendar" role="grid" aria-label="Calendario de días con entrenamiento"></div></div>
+  </section>
+
+  <div class="chart-grid">
+    <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Zoom y desplazamiento sincronizados con Promedio diario.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Su zoom y desplazamiento están sincronizados con la gráfica de promedio."></div></section>
+    <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Zoom y desplazamiento sincronizados con Volumen de flechas.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Su zoom y desplazamiento están sincronizados con la gráfica de volumen."></div></section>
+  </div>
+
+  <section class="history-card" aria-labelledby="sessionsTitle"><div class="card-heading"><div><h2 id="sessionsTitle">Sesiones del período</h2><p>Las más recientes aparecen primero.</p></div></div><div id="sessionList" class="session-list"></div></section>
+  <div class="history-actions"><a class="history-button history-button--primary" href="/pruebas/supabase/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
+  <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
+</div>
+
+
+
+<dialog id="trainingCaptchaDialog" aria-labelledby="trainingCaptchaTitle">
+  <h2 id="trainingCaptchaTitle">Confirma para iniciar el respaldo</h2>
+  <p>Esta comprobación protege el guardado sin cuenta. Tus flechas siguen guardadas en este dispositivo.</p>
+  <div id="trainingCaptchaWidget"></div>
+  <form method="dialog"><button type="submit">Volver</button></form>
+</dialog>
+
+</main><script src="/pruebas/supabase/assets/test-controls/buddy.js" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/constelacion.js?v=1.9" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-config.js?v=2" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-storage.js?v=1" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-store.js?v=4" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-engine.js?v=4" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-identity.js?v=2" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-history.js?v=1" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-captcha.js?v=2" defer></script><script src="/pruebas/supabase/assets/entrenamiento/js/sync-bootstrap.js?v=4" defer></script><script src="/pruebas/supabase/assets/entrenamiento/historial/js/historial.js?v=11" defer></script></body></html>
