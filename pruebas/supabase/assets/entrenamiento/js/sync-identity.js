@@ -78,7 +78,7 @@
     if(selected.principalId)throw failure('auth_recovery_required');
     const captchaToken=await this.captchaProvider();if(!captchaToken)throw failure('captcha_required');
     const result=await client.signInAnonymously({options:{captchaToken}});
-    if(result.error||!result.data?.session)throw failure('anonymous_signin_failed');session=result.data.session;
+    if(result.error||!result.data?.session){const code=result.error?.code;throw failure(code==='captcha_failed'?'captcha_rejected':code==='over_request_rate_limit'?'anonymous_signin_rate_limited':['anonymous_provider_disabled','signup_disabled'].includes(code)?'anonymous_signin_disabled':'anonymous_signin_failed');}session=result.data.session;
    }
    if(!UUID.test(session.user?.id||'')||!session.access_token)throw failure('auth_recovery_required');
    if(selected.principalId&&selected.principalId!==session.user.id)throw failure('principal_changed');

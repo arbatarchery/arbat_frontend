@@ -5,7 +5,8 @@
  const runtime=window.ArbatTrainingSyncConfig||{enabled:false};
  const config={...runtime,publicKey:runtime.publicKey||runtime.publishableKey};
  const store=new window.ArbatSyncStore.Store({name:config.storeName||'arbat-training-sync-v1'});
- const captcha=window.ArbatSyncCaptcha?new window.ArbatSyncCaptcha.Captcha({enabled:config.enabled===true,siteKey:config.turnstileSiteKey}):null;
+ let captchaProblem=null;
+ const captcha=window.ArbatSyncCaptcha?new window.ArbatSyncCaptcha.Captcha({enabled:config.enabled===true,siteKey:config.turnstileSiteKey,onState:detail=>{if(detail.state==='error'){captchaProblem=detail;engine.emit('auth_required',detail.error).catch(()=>{});}else if(['loading','verified'].includes(detail.state))captchaProblem=null;}}):null;
  const identity=window.ArbatSyncIdentity?new window.ArbatSyncIdentity.Identity({store,...config,getBuddy:()=>{
   const user=window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.();
   if(user&&!(user.id??user._id))throw Object.assign(new Error('buddy_auth_required'),{code:'buddy_auth_required'});
@@ -14,6 +15,7 @@
  let autoPrompt=null;
  let lastError=null,queue=Promise.resolve(),importPromise=null;const failed=[];
  const publish=detail=>{
+  if(captchaProblem&&['captcha_required',captchaProblem.error].includes(detail.error))detail={...detail,error:captchaProblem.error,captchaCode:captchaProblem.code};
   if(lastError||detail.issues?.length)detail={...detail,state:'error'};
   window.ArbatTrainingSync.lastStatus=detail;
   window.dispatchEvent(new CustomEvent('arbat:sync-state',{detail}));
