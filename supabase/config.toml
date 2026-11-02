@@ -1,0 +1,6 @@
+project_id = "arbat-training-development"
+
+[functions.training-sync]
+# Asymmetric Supabase user JWTs are verified with Auth /user IN the handler.
+# A public API key alone never passes that check. Disabled by runtime flag too.
+verify_jwt = false
