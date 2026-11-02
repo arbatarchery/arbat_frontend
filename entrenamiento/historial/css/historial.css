@@ -34,3 +34,5 @@
 .training-history{background:#fff;box-shadow:none;clip-path:none}
 .training-history .history-header h1,.training-history .history-intro,.training-history .data-scope,.training-history #historySyncNotice{color:#111}
 .training-history .history-actions .history-button{color:#111}
+
+.training-history #historySyncRetry{color:#000;background:#fff;cursor:pointer}.training-history #historySyncRetry:focus-visible{outline:2px solid #111;outline-offset:3px}.training-history #historySyncDiagnostic{color:#303b45;font-size:.8rem;overflow-wrap:anywhere}
