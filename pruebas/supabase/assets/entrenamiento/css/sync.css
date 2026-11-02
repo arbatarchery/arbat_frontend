@@ -1,6 +1,7 @@
 /* Barra fuera del recuadro de diana. El área táctil ocupa solo el espacio entre paneles. */
 .app-entrenamiento .sync-status-button,.app-entrenamiento .sync-desktop-status{display:none}
 .app-entrenamiento .control-column{display:contents}
+.app-entrenamiento .sync-claim-notice{margin:0 16px;padding:8px 12px;border-left:3px solid #42cf89;color:var(--ink);font-size:.85rem;line-height:1.5}
 @media(min-width:860px){
  .app-entrenamiento .control-column{display:block;position:sticky;top:16px;min-width:0}
  .app-entrenamiento .control-column .control-panel{position:static}

@@ -31,7 +31,7 @@
  const history=window.ArbatSyncHistory?new window.ArbatSyncHistory.Reader({enabled:config.enabled===true&&config.historyEnabled===true,url:config.url,publicKey:config.publicKey,
   identityProvider:async()=>failed.length?null:await(config.identityProvider?config.identityProvider():identity?.identity({forHistory:true}))||null,transport:{claim:async id=>{
    const keys=(await store.readAll('sessions')).filter(r=>!r.accountKey&&(!r.principalId||r.principalId===id.principalId)).map(r=>r.key);
-   const result=await historyTransport.claim(id);if(result.status==='accepted')await store.assignAccount(keys,id.principalId,id.accountKey);return result;
+   const result=await historyTransport.claim(id);if(result.status==='accepted'){await store.confirmClaim(id,result);await store.assignAccount(keys,id.principalId,id.accountKey);}return result;
   }}}):null;
  const capture=(snapshot,options={})=>{
   // Clone now, before the application mutates its state again. No sync fields are
