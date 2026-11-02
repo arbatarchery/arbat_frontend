@@ -36,13 +36,22 @@
  function mount(window,document){
   const trigger=document?.getElementById('syncStatusButton'),dialog=document?.getElementById('syncStatusDialog');if(!trigger||!dialog)return;
   const $=id=>document.getElementById(id),desktop=$('syncDesktopStatus'),triggers=[trigger,desktop].filter(Boolean);let opener=trigger;let latest=window.ArbatTrainingSync?.lastStatus||{state:'disabled'},busy=false,lastRetryError=null;
+  const notice=$('syncClaimNotice'),shownClaims=new Set();let claimTimer=null,currentClaim=null;
+  const updateClaim=(receipt,accountKey)=>{
+   if(!notice)return;const text=claimMessage(receipt,accountKey);
+   const key=text?JSON.stringify([receipt.accountKey,receipt.ownerId,receipt.sessionsClaimed]):null;
+   if(key===currentClaim)return;
+   if(claimTimer!==null){window.clearTimeout(claimTimer);claimTimer=null;}currentClaim=key;
+   notice.textContent=text;notice.hidden=!text||shownClaims.has(key);if(notice.hidden)return;
+   shownClaims.add(key);claimTimer=window.setTimeout(()=>{claimTimer=null;if(currentClaim===key)notice.hidden=true;},10000);
+  };
   const update=detail=>{latest=detail?{...detail,claim:detail.claim===undefined?latest.claim:detail.claim}:latest;const value=present(latest);for(const button of triggers){button.dataset.color=value.color;button.setAttribute('aria-label',`${summary(latest,value)}. Ver detalles del respaldo.`);}if($('syncDesktopText'))$('syncDesktopText').textContent=summary(latest,value);
    $('syncStateTitle').textContent=value.title;$('syncStateDescription').textContent=lastRetryError||value.description+(/^\d{6}$/.test(latest.captchaCode||'')?` Código de Cloudflare: ${latest.captchaCode}.`:'');
    $('syncPendingCount').textContent=String(Math.max(0,Number(latest.pending)||0));
    $('syncLocalSaved').textContent=latest.localSaved===true?'Confirmado':latest.localSaved===false?'No confirmado':'Sin confirmar todavía';
    $('syncLastConfirmed').textContent=latest.lastConfirmedAt?new Intl.DateTimeFormat('es-BO',{dateStyle:'short',timeStyle:'short'}).format(new Date(latest.lastConfirmedAt)):'Todavía no hay confirmaciones';
    const user=window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.();$('syncAccount').textContent=user?'Con tu cuenta':'Sin cuenta · este dispositivo';
-   const notice=$('syncClaimNotice');if(notice){const text=claimMessage(latest.claim,user?.id??user?._id);notice.textContent=text;notice.hidden=!text;}
+   updateClaim(latest.claim,user?.id??user?._id);
    const retry=$('syncRetry');retry.disabled=busy||Boolean(latest.blocked)||(!window.ArbatTrainingSync?.enabled&&latest.state!=='error');
    retry.textContent=busy?'Reintentando…':latest.blocked?'Revisión pendiente':latest.error==='captcha_required'?'Confirmar y continuar':latest.error?.startsWith('captcha_')?'Reintentar verificación':'Reintentar guardado y respaldo';
   };
