@@ -72,3 +72,55 @@ test('history reports real partial arrow pages and counts cached revisions once'
  assert.ok(progress.every((p,i)=>!i||p.arrows>=progress[i-1].arrows));
  progress.length=0;await api.get(options);assert.deepEqual(progress.at(-1),{sessions:1,ends:1,arrows:2});
 });
+
+const pause=(ms,signal)=>new Promise((resolve,reject)=>{
+ const abort=()=>{clearTimeout(timer);reject(signal.reason||new DOMException('Aborted','AbortError'));};
+ const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);
+ if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});
+});
+const many=Array.from({length:8},(_,i)=>({...metadata,id:`e0000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`}));
+test('parallel history caps requests at three, preserves order and reuses only freshly authorized revisions',async()=>{
+ let active=0,peak=0,calls=0,allowed=true;const revisions=new Map(many.map(m=>[m.id,3])),progress=[];
+ const api=reader(async(_url,init)=>{
+  calls++;const b=JSON.parse(init.body);active++;peak=Math.max(peak,active);
+  try{
+   await pause(b.session_id===many[0].id?8:2,init.signal);
+   if(b.action==='history.list')return Response.json({status:'accepted',sessions:!allowed||b.cursor?[]:many.map(m=>({...m,revision:revisions.get(m.id)})),next_cursor:allowed&&!b.cursor?many.at(-1).id:null});
+   return Response.json({status:'accepted',revision:revisions.get(b.session_id),items:b.collection==='ends'?[{id:'end:'+b.session_id,ordinal:1}]:[{id:'arrow:'+b.session_id,end_id:'end:'+b.session_id,ordinal:1,label:'9',score:9}],next_cursor:null});
+  }finally{active--;}
+ });
+ const options={from:'2026-11-01',to:'2026-11-30',onProgress:(_n,p)=>progress.push(p)};
+ const first=await api.get(options);assert.deepEqual(first.sessions.map(s=>s.id),many.map(m=>m.id));assert.equal(peak,3);assert.equal(calls,18);
+ assert.deepEqual(progress.at(-1),{sessions:8,ends:8,arrows:8});assert.ok(progress.every((p,i)=>!i||p.arrows>=progress[i-1].arrows));
+ const before=calls;await api.get(options);assert.equal(calls-before,2); // fresh index pages, zero unchanged details
+ revisions.set(many[0].id,4);const changed=calls;await api.get(options);assert.equal(calls-changed,4); // only one changed session is downloaded
+ allowed=false;const denied=calls;assert.equal((await api.get(options)).sessions.length,0);assert.equal(calls-denied,1); // cached private rows are not returned
+});
+test('parallel context and history share a single account claim',async()=>{
+ let claims=0,release;
+ const api=reader(async(_url,init)=>{const b=JSON.parse(init.body);return b.action==='history.context'?Response.json({status:'accepted',role:'user'}):response(b);},{transport:{claim:()=>{claims++;return new Promise(resolve=>{release=resolve;});}}});
+ const jobs=[api.context(),get(api)];await new Promise(resolve=>setImmediate(resolve));assert.equal(claims,1);release({status:'accepted'});
+ await Promise.all(jobs);assert.equal(claims,1);
+});
+test('a failed parallel load joins aborted siblings before retrying partial cached pages',async()=>{
+ let active=0,limited=true;const endCalls=new Map();
+ const api=reader(async(_url,init)=>{
+  const b=JSON.parse(init.body);if(b.action==='history.list')return Response.json({status:'accepted',sessions:many,next_cursor:null});
+  active++;
+  try{
+   if(b.collection==='ends')endCalls.set(b.session_id,(endCalls.get(b.session_id)||0)+1);
+   await pause(b.collection==='ends'?1:b.session_id===many[0].id?5:20,init.signal);
+   if(limited&&b.collection==='arrows'&&b.session_id===many[0].id)return Response.json({status:'rate_limited'},{status:429});
+   return Response.json({status:'accepted',revision:3,items:b.collection==='ends'?[{id:'end:'+b.session_id,ordinal:1}]:[{id:'arrow:'+b.session_id,end_id:'end:'+b.session_id,ordinal:1}],next_cursor:null});
+  }finally{active--;}
+ });
+ await assert.rejects(get(api),e=>e.code==='rate_limited');assert.equal(active,0);
+ limited=false;const result=await get(api);assert.equal(result.sessions.length,8);assert.ok(result.sessions.every(s=>s.completed.length===1&&s.completed[0].arrows.length===1));
+ assert.ok([...endCalls.values()].every(count=>count===1));assert.equal(active,0);
+});
+
+test('switching away during the final account check cancels a completed parallel result',async()=>{
+ const controller=new AbortController();let checks=0;
+ const api=reader(async(_url,init)=>response(JSON.parse(init.body)),{identityProvider:async()=>{if(++checks===5)controller.abort();return identity;}});
+ await assert.rejects(api.get({from:'2026-11-01',to:'2026-11-30',signal:controller.signal}),e=>e.name==='AbortError');
+});

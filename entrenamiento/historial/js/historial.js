@@ -187,7 +187,7 @@
       let local=await localSessionsWithBackup(user);const own=currentUser();historyError=null;historyFailure=null;
       if(!rawCurrentUser()&&user.id!==own.id)return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
       try{
-        const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,targetSubject:user.id===own.id?null:user.id,signal,onProgress:(_count,counts)=>updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando sesiones…',counts)});
+        const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,targetSubject:user.id===own.id?null:user.id,signal,onProgress:(_count,counts)=>{if((state.selectedUser||currentUser()).id===user.id)updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando sesiones…',counts);}});
         local=await localSessionsWithBackup(user);
         const mappings=(await sync.localSessions()).map(r=>({...r,normalized:normalizeSession(r.snapshot)}));
         const merged=window.ArbatSyncHistory.merge(local,remote,mappings).map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
@@ -677,17 +677,25 @@
       if(sequence!==state.renderSequence)return;
       const signedUser=currentUser();
       if(state.ownUserId!==signedUser.id){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
-      if(!authFailure){
-        updateHistoryLoading(sequence,'Comprobando la conexión con la nube…');
-        await loadCoaching(range,signal,sequence);if(sequence!==state.renderSequence)return;
-      }else{clearCoaching();historyError=authFailure.code;historyFailure=safeHistoryDiagnostic(authFailure);}
       user=state.selectedUser||currentUser();
       $('periodDates').textContent=`${formatDate(range.start,{day:'numeric',month:'short',year:'numeric'})} — ${formatDate(range.end,{day:'numeric',month:'short',year:'numeric'})}`;
-      renderIdentity(user,cloud?'loading':'local');
-      if(authFailure)sessions=(await localSessionsWithBackup(user)).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
-      else{
-        updateHistoryLoading(sequence,'Cargando sesiones de la nube…');
-        sessions=await loadSessions(range,user,signal,sequence);
+      if(authFailure){
+        clearCoaching();historyError=authFailure.code;historyFailure=safeHistoryDiagnostic(authFailure);
+        sessions=(await localSessionsWithBackup(user)).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
+      }else{
+        updateHistoryLoading(sequence,'Cargando historial y comprobando los permisos…');
+        const requestedUser=user,coaching=loadCoaching(range,signal,sequence);
+        renderIdentity(user,cloud?'loading':'local');
+        const results=await Promise.allSettled([coaching,loadSessions(range,requestedUser,signal,sequence)]);
+        if(sequence!==state.renderSequence||signal.aborted)return;
+        for(const result of results)if(result.status==='rejected')throw result.reason;
+        user=state.selectedUser||currentUser();
+        // A fresh server scope check can revoke the selected athlete. Never
+        // publish that athlete's parallel result after the selection was reset.
+        if(user.id!==requestedUser.id){
+          updateHistoryLoading(sequence,'Cargando tu historial personal…',{sessions:0,ends:0,arrows:0});
+          sessions=await loadSessions(range,user,signal,sequence);
+        }else sessions=results[1].value;
       }
       if(sequence!==state.renderSequence||signal.aborted)return;
     const ownDays = dailyData(sessions, range),days=window.ArbatHistoryActivity?window.ArbatHistoryActivity.decorate(ownDays,user.id===currentUser().id?state.coaching?.days||[]:[]):ownDays, provider = window.Buddy && window.Buddy.trainingHistory;
