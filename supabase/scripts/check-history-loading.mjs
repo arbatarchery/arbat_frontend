@@ -42,7 +42,7 @@ try{
  await page.clock.runFor(1000);assert.equal(await page.evaluate(()=>window.__contextCalls),0);
  await page.evaluate(()=>{window.__tokenReady=true;window.dispatchEvent(new CustomEvent('buddy:auth-ready'));});
  await page.waitForFunction(()=>typeof window.__progress==='function');
- assert.match(await page.locator('#historyLoadingStage').textContent(),/Cargando sesiones/);
+ assert.match(await page.locator('#historyLoadingStage').textContent(),/Conexión con la nube confirmada/);
  await page.evaluate(()=>window.__progress(0,3,18));
  assert.match(await page.locator('#historyLoadingCounts').textContent(),/Andanadas: 3 · Flechas: 18 · Arqueros: 3/);
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('buddy:user-updated')));

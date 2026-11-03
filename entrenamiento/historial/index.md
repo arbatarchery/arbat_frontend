@@ -13,11 +13,11 @@ scripts:
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=5"
-  - "/entrenamiento/js/sync-history.js?v=4"
+  - "/entrenamiento/js/sync-history.js?v=5"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=7"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=16"
+  - "/entrenamiento/historial/js/historial.js?v=17"
 ---
 
 <div class="training-history" id="trainingHistory">

@@ -43,3 +43,12 @@ Al iniciar o reintentar se retiran los avisos anteriores y se muestra «Cargando
 La espera inicial de autenticación tiene un máximo de 45 segundos y se cancela al cambiar de cuenta o de período. Los errores reales y la falta de conexión mantienen el aviso de datos locales y su reintento. Un dispositivo anónimo sin datos en la nube no muestra un falso error de autenticación. No hay nuevas migraciones ni cambios en permisos para esta actualización.
 
 Prueba: `node supabase/scripts/check-history-loading.mjs` simula 25 segundos de preparación, avance de contadores, reintento tras un error, cuenta anónima, espera vencida y falta de conexión, sin contactar los servicios reales.
+
+
+## Consultas en paralelo
+
+El lector descarga detalles de hasta tres sesiones en paralelo. Cada página del índice se sigue autorizando en el servidor; las versiones ya cargadas solo se reutilizan si aparecen autorizadas y sin cambios en ese índice actualizado. Las consultas concurrentes comparten una sola confirmación de vinculación de cuenta. Si falla una consulta, se cancelan y esperan sus compañeras antes de permitir el reintento, conservando las páginas parciales válidas sin duplicarlas.
+
+La consulta del panel de entrenadores y la del historial seleccionado avanzan en paralelo. Si la nueva comprobación de permisos retira el arquero seleccionado, se descarta su resultado y se consulta el historial personal antes de actualizar las estadísticas. Se conserva el límite de tres peticiones de detalles, los contadores progresivos y la verificación de cuenta, propietario y revisión.
+
+`node supabase/scripts/benchmark-history.mjs` compara la misma muestra de 8 sesiones, 21 andanadas y 119 flechas con 25 ms simulados por petición. Verifica datos idénticos, 18 peticiones de primera lectura y solo dos páginas de índice al volver a consultar las mismas revisiones. La medición es local, no una estimación garantizada del tiempo del servidor real. `node supabase/scripts/check-history-parallel.mjs` comprueba la carga simultánea y el descarte de resultados si cambian los permisos. Esta mejora no requiere migraciones ni actualizar la función Edge.
