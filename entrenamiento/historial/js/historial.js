@@ -10,6 +10,7 @@
   const state = {
     ownUserId: null,
     verifiedRole:null,
+    loading:false,loadingCounts:null,
     coaching: null,
     directoryLoaded: false,
     privileged: false,
@@ -141,8 +142,37 @@
     return sessions;
   }
 
+  function updateHistoryLoading(sequence,stage,counts={}) {
+    if(sequence!==state.renderSequence||!state.loading)return;
+    state.loadingCounts={...state.loadingCounts,...counts};
+    $('historyLoading').hidden=false;$('historyLoadingStage').textContent=stage;
+    const c=state.loadingCounts;
+    $('historyLoadingCounts').textContent=`Sesiones: ${c.sessions} · Andanadas: ${c.ends} · Flechas: ${c.arrows} · Arqueros: ${c.athletes}`;
+  }
+
+  function waitForHistoryAuth(signal) {
+    if(window.navigator.onLine===false)return Promise.reject(Object.assign(new Error('history_offline'),{code:'history_offline'}));
+    return new Promise((resolve,reject)=>{
+      const events=['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded','buddy:ready'];
+      let timer,timeout,finished=false;
+      const finish=error=>{if(finished)return;finished=true;clearInterval(timer);clearTimeout(timeout);for(const event of events)window.removeEventListener(event,check);signal.removeEventListener('abort',abort);error?reject(error):resolve();};
+      const abort=()=>finish(signal.reason||new DOMException('Aborted','AbortError'));
+      const check=()=>{
+        if(signal.aborted){abort();return;}
+        const auth=window.Buddy?.auth,user=rawCurrentUser(),authState=auth?.getState?.();
+        if(authState?.checking===true)return;
+        if(user&&(typeof auth?.getAccessToken!=='function'||auth.getAccessToken())){finish();return;}
+        if(!user&&auth&&(authState?.checking===false||window.ArbatTrainingSync?.authObserved))finish();
+      };
+      for(const event of events)window.addEventListener(event,check);
+      signal.addEventListener('abort',abort,{once:true});
+      timer=setInterval(check,200);timeout=setTimeout(()=>finish(Object.assign(new Error('history_auth_timeout'),{code:'history_auth_timeout'})),45000);
+      check();
+    });
+  }
+
   function safeHistoryDiagnostic(error) {
-    const codes=['history_unavailable','history_timeout','history_network_error','history_invalid_json','history_disabled','auth_required','auth_changed','buddy_auth_required','buddy_bridge_unavailable','captcha_required','rate_limited','history_changed','history_response_limit','history_cache_limit','invalid_history_page','invalid_history_metadata','invalid_history_detail','invalid_history_parent','invalid_history_cursor'];
+    const codes=['history_unavailable','history_auth_timeout','history_offline','history_timeout','history_network_error','history_invalid_json','history_disabled','auth_required','auth_changed','buddy_auth_required','buddy_bridge_unavailable','captcha_required','rate_limited','history_changed','history_response_limit','history_cache_limit','invalid_history_page','invalid_history_metadata','invalid_history_detail','invalid_history_parent','invalid_history_cursor'];
     const code=codes.includes(error?.code)?error.code:error?.name==='TimeoutError'?'history_timeout':error?.name==='TypeError'?'history_processing_error':'history_unavailable';
     const parts=[code];
     if(['history.list','history.detail'].includes(error?.historyAction))parts.push(error.historyAction);
@@ -151,18 +181,18 @@
     return parts.join(' · ');
   }
 
-  async function loadSessions(range, user, signal) {
+  async function loadSessions(range, user, signal,sequence) {
     const sync=window.ArbatTrainingSync;
     if(sync?.historyEnabled&&window.ArbatSyncHistory){
       let local=await localSessionsWithBackup(user);const own=currentUser();historyError=null;historyFailure=null;
       if(!rawCurrentUser()&&user.id!==own.id)return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
       try{
-        const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,targetSubject:user.id===own.id?null:user.id,signal});
+        const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,targetSubject:user.id===own.id?null:user.id,signal,onProgress:(_count,counts)=>updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando sesiones…',counts)});
         local=await localSessionsWithBackup(user);
         const mappings=(await sync.localSessions()).map(r=>({...r,normalized:normalizeSession(r.snapshot)}));
         const merged=window.ArbatSyncHistory.merge(local,remote,mappings).map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
         Object.defineProperty(merged,'historySource',{value:'mixed'});return merged;
-      }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);local=await localSessionsWithBackup(user);return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);}
+      }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);if(historyError==='auth_required'&&!rawCurrentUser()&&!error.httpStatus){historyError=null;historyFailure=null;}local=await localSessionsWithBackup(user);return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);}
     }
     const provider = window.Buddy && window.Buddy.trainingHistory;
     if (provider && typeof provider.getSessions === 'function') {
@@ -194,7 +224,7 @@
     if($('athleteRole'))$('athleteRole').textContent=user.id===currentUser().id&&rawCurrentUser()&&window.ArbatTrainingSync?.historyEnabled?({superadmin:'SuperAdmin',admin:'Administrador',coach:'Entrenador',user:'Arquero',unknown:'Acceso sin confirmar'}[state.verifiedRole]||'Verificando acceso…'):'Arquero';
     $('dataScope').textContent = source === 'remote'
       ? `Historial de ${user.name} guardado en arbat.`
-      : source==='mixed'?`Historial en la nube de ${user.name}, incluidos los cambios locales pendientes.`:`Sesiones de ${user.name} guardadas en este dispositivo.`;
+      : source==='loading'?'Cargando datos de la nube.':source==='mixed'?`Historial en la nube de ${user.name}, incluidos los cambios locales pendientes.`:`Sesiones de ${user.name} guardadas en este dispositivo.`;
   }
 
   function renderKpis(sessions) {
@@ -576,7 +606,7 @@
   }
 
   async function initializeDirectory() {
-    if(window.ArbatTrainingSync?.historyEnabled){$('athletePicker').hidden=true;return;}
+    if(window.ArbatTrainingSync?.historyEnabled){$('athletePicker').hidden=!state.coaching;return;}
 
     state.privileged = isPrivileged();
     if (!state.privileged) { $('athletePicker').hidden = true;state.selectedUser=currentUser();return; }
@@ -620,8 +650,9 @@
     try{
       const context=await sync.historyContext({signal});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
       state.verifiedRole=['user','coach','admin','superadmin'].includes(context.role)?context.role:'unknown';
+      updateHistoryLoading(sequence,'Conexión con la nube confirmada · Consultando arqueros…');
       if(!context.can_coach){state.selectedUser=currentUser();return;}
-      const overview=await sync.coachOverview({from:range.startKey,to:range.endKey,signal});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
+      const overview=await sync.coachOverview({from:range.startKey,to:range.endKey,signal,onProgress:counts=>updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando arqueros…',counts)});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
       state.coaching=overview;state.privileged=true;
       const selected=state.selectedUser;
       if(selected&&selected.id!==currentUser().id&&!overview.athletes.some(a=>a.subject===selected.id))state.selectedUser=currentUser();
@@ -634,14 +665,31 @@
   }
 
   async function render() {
-    const sequence = ++state.renderSequence; closePopover();
-    historyController?.abort();historyController=new AbortController();
-    const range=selectedRange();
-    await loadCoaching(range,historyController.signal,sequence);if(sequence!==state.renderSequence)return;
-    const user=state.selectedUser||currentUser();
-    $('periodDates').textContent = `${formatDate(range.start, { day: 'numeric', month: 'short', year: 'numeric' })} — ${formatDate(range.end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
-    renderIdentity(user);
-    const sessions = await loadSessions(range, user, historyController.signal).catch(() => []); if (sequence !== state.renderSequence) return;
+    const sequence=++state.renderSequence;closePopover();
+    historyController?.abort();const controller=new AbortController();historyController=controller;const signal=controller.signal;
+    const range=selectedRange(),cloud=window.ArbatTrainingSync?.historyEnabled;
+    historyError=null;historyFailure=null;$('historySyncNotice').hidden=true;$('historySyncDiagnostic').hidden=true;
+    state.loading=Boolean(cloud);state.loadingCounts={sessions:0,ends:0,arrows:0,athletes:0};
+    if(cloud){clearCoaching();$('trainingHistory').setAttribute('aria-busy','true');$('dataScope').textContent='Cargando datos de la nube.';updateHistoryLoading(sequence,'Preparando tu sesión…');}
+    let user,sessions,authFailure=null;
+    try{
+      if(cloud)try{await waitForHistoryAuth(signal);}catch(error){if(signal.aborted)return;authFailure=error;}
+      if(sequence!==state.renderSequence)return;
+      const signedUser=currentUser();
+      if(state.ownUserId!==signedUser.id){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
+      if(!authFailure){
+        updateHistoryLoading(sequence,'Comprobando la conexión con la nube…');
+        await loadCoaching(range,signal,sequence);if(sequence!==state.renderSequence)return;
+      }else{clearCoaching();historyError=authFailure.code;historyFailure=safeHistoryDiagnostic(authFailure);}
+      user=state.selectedUser||currentUser();
+      $('periodDates').textContent=`${formatDate(range.start,{day:'numeric',month:'short',year:'numeric'})} — ${formatDate(range.end,{day:'numeric',month:'short',year:'numeric'})}`;
+      renderIdentity(user,cloud?'loading':'local');
+      if(authFailure)sessions=(await localSessionsWithBackup(user)).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
+      else{
+        updateHistoryLoading(sequence,'Cargando sesiones de la nube…');
+        sessions=await loadSessions(range,user,signal,sequence);
+      }
+      if(sequence!==state.renderSequence||signal.aborted)return;
     const ownDays = dailyData(sessions, range),days=window.ArbatHistoryActivity?window.ArbatHistoryActivity.decorate(ownDays,user.id===currentUser().id?state.coaching?.days||[]:[]):ownDays, provider = window.Buddy && window.Buddy.trainingHistory;
     $('studentActivityLegend').hidden=!(state.coaching&&user.id===currentUser().id);
     resetChartViewport();
@@ -651,7 +699,15 @@
       $('historySyncDiagnostic').hidden=!historyFailure;
       $('historySyncDiagnostic').textContent=historyFailure?'Diagnóstico: '+historyFailure:'';
       if(!historyError&&state.coaching)$('historySyncNotice').hidden=true;
-      $('historySyncMessage').textContent=historyError==='captcha_required'?'Confirma la comprobación para consultar la nube. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'La consulta a la nube alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta de la nube. Se muestran los datos locales.';
+      $('historySyncMessage').textContent=historyError==='history_offline'?'Sin conexión. Se muestran los datos locales.':historyError==='history_auth_timeout'?'No se pudo terminar de comprobar tu sesión. Reintenta la consulta.':historyError==='captcha_required'?'Confirma la comprobación para consultar la nube. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'La consulta a la nube alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta de la nube. Se muestran los datos locales.';
+    }
+    }catch(error){
+      if(signal.aborted||sequence!==state.renderSequence)return;
+      historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);
+      $('historySyncNotice').hidden=false;$('historySyncMessage').textContent='No se pudo completar la consulta de la nube. Puedes reintentar.';
+      $('historySyncDiagnostic').hidden=false;$('historySyncDiagnostic').textContent='Diagnóstico: '+historyFailure;
+    }finally{
+      if(sequence===state.renderSequence){state.loading=false;$('historyLoading').hidden=true;$('trainingHistory').setAttribute('aria-busy','false');}
     }
   }
 
@@ -662,12 +718,13 @@
   document.addEventListener('keydown', event => { if (event.key === 'Escape') { closePopover(); closeUserResults(); } });
   window.addEventListener('resize', closePopover);
   ['buddy:auth-state-changed', 'buddy:auth-ready', 'buddy:user-loaded', 'buddy:user-updated'].forEach(eventName => window.addEventListener(eventName, () => {
-    const signedUser = currentUser();
-    if(state.ownUserId!==signedUser.id){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
+    const signedUser = currentUser(),identityChanged=state.ownUserId!==signedUser.id;
+    if(state.loading&&!identityChanged)return;
+    if(identityChanged){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
     if (!state.selectedUser || (state.selectedUser.anonymous && rawCurrentUser()) || (!rawCurrentUser() && !state.selectedUser.anonymous)) state.selectedUser = signedUser;
     initializeDirectory(); render();
   }));
-  window.addEventListener('buddy:admin-visibility-changed',async()=>{await initializeDirectory();render();});
+  window.addEventListener('buddy:admin-visibility-changed',async()=>{if(state.loading)return;await initializeDirectory();render();});
   window.addEventListener('arbat:sync-state',()=>{if(!window.ArbatTrainingSync?.historyEnabled)render();});
   $('historySyncRetry')?.addEventListener('click',async()=>{try{if(historyError==='captcha_required')await window.ArbatTrainingSync.authorizeHistory();await render();}catch{$('historySyncMessage').textContent='No se pudo completar la comprobación. Tus datos locales se conservan.';}});
   window.addEventListener('buddy:ready', initializeDirectory, { once: true });

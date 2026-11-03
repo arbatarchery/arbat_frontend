@@ -31,8 +31,14 @@
   }
   async identity({forHistory=false}={}){
    if(!this.enabled)return null;
-   if(this.inflight)return this.inflight;
-   this.inflight=this.resolve(forHistory).finally(()=>{this.inflight=null;});return this.inflight;
+   if(this.inflight){
+    const pending=this.inflight,retryForHistory=forHistory&&!this.inflightForHistory;
+    const result=await pending;
+    return result||!retryForHistory?result:this.identity({forHistory:true});
+   }
+   this.inflightForHistory=forHistory;
+   const pending=this.resolve(forHistory).finally(()=>{if(this.inflight===pending)this.inflight=null;});
+   this.inflight=pending;return pending;
   }
   async resolve(forHistory=false){
    if(!/^https:\/\//.test(this.url||'')||!this.publicKey)throw failure('auth_configuration_required');

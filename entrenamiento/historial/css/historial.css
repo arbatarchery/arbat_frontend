@@ -36,3 +36,5 @@
 .training-history .history-actions .history-button{color:#111}
 
 .training-history #historySyncRetry{color:#000;background:#fff;cursor:pointer}.training-history #historySyncRetry:focus-visible{outline:2px solid #111;outline-offset:3px}.training-history #historySyncDiagnostic{color:#303b45;font-size:.8rem;overflow-wrap:anywhere}
+
+.training-history .history-loading{display:grid;gap:8px;margin:0 0 16px;padding:16px;border:1px solid #cbd2d8;border-radius:12px;background:#f4f6f8;color:#111}.training-history .history-loading[hidden]{display:none}.training-history .history-loading p{margin:0;color:#303b45;font-size:.85rem}.history-loading progress{width:min(100%,420px);height:8px;accent-color:#ee7b2d}

@@ -91,3 +91,15 @@ test('Supabase rejection of a completed CAPTCHA surfaces its cause without expos
  await assert.rejects(identity.identity(),e=>e.code==='captcha_rejected'&&!e.message.includes('private server detail'));
  assert.equal((await store.readAll('sessions'))[0].principalId,null);
 });
+
+test('initial history establishes Buddy identity after a concurrent empty sync check',async t=>{
+ const store=setup();t.after(()=>store.close());let bridgeCalls=0;
+ const identity=new Identity({...config,store,getBuddy:()=>({accountKey:'buddy-A',buddyToken:'buddy-token'}),sdkLoader:()=>assert.fail('no anonymous identity'),captchaProvider:()=>assert.fail('no CAPTCHA'),fetchImpl:async()=>{bridgeCalls++;return Response.json({status:'accepted',principal_id:P,subject:'buddy-A'});}});
+ const background=identity.identity();const history=identity.identity({forHistory:true});
+ assert.equal(await background,null);assert.equal((await history).principalId,P);assert.equal(bridgeCalls,1);
+});
+test('a concurrent history request without an account terminates without creating credentials',async t=>{
+ const store=setup();t.after(()=>store.close());const no=()=>assert.fail('no credentials for an empty signed-out device');
+ const identity=new Identity({...config,store,sdkLoader:no,captchaProvider:no,fetchImpl:no});
+ assert.deepEqual(await Promise.all([identity.identity(),identity.identity({forHistory:true})]),[null,null]);
+});

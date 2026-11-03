@@ -27,7 +27,7 @@
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity)throw error('auth_required');
    return this.request({action:'history.context'},identity,signal);
   }
-  async coachOverview({from,to,signal}){
+  async coachOverview({from,to,signal,onProgress=()=>{}}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');
    let cursor=null,overview=null;const seen=new Set();
    do{
@@ -35,7 +35,7 @@
     if(page.status==='changed')throw error('history_changed');
     if(!Array.isArray(page.athletes)||page.athletes.length>32||!Array.isArray(page.days)||typeof page.scope_hash!=='string')throw error('invalid_history_page');
     if(!overview)overview={...page,athletes:[]};
-    overview.athletes.push(...page.athletes);if(overview.athletes.length>10000)throw error('history_response_limit');
+    overview.athletes.push(...page.athletes);onProgress({athletes:overview.athletes.length});if(overview.athletes.length>10000)throw error('history_response_limit');
     cursor=page.next_cursor;if(cursor&&seen.has(cursor))throw error('invalid_history_cursor');if(cursor)seen.add(cursor);
    }while(cursor);
    return overview;
@@ -47,15 +47,18 @@
   async load({from,to,targetSubject,signal,onProgress}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity)throw error('auth_required');
    const sessions=[],deletedIds=[];let cursor=null;const cursors=new Set();
+   let endsLoaded=0,arrowsLoaded=0;
+   const report=part=>onProgress(sessions.length,{sessions:sessions.length,ends:endsLoaded+(part?.ends.length||0),arrows:arrowsLoaded+(part?.arrows.length||0)});
    do{
     const page=await this.request({action:'history.list',from,to,cursor,target_subject:targetSubject},identity,signal);
+    report();
     if(!Array.isArray(page.sessions)||page.sessions.length>8)throw error('invalid_history_page');
     for(const metadata of page.sessions){
      if(typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw error('invalid_history_metadata');
      if(metadata.deletedAt){deletedIds.push(metadata.id);continue;}
      const key=`${scope(identity)}:${metadata.id}:${metadata.revision}`;let part=this.parts.get(key);
      if(!part){if(this.parts.size>=1000)throw error('history_cache_limit');part={ends:[],arrows:[],cursor:{ends:null,arrows:null},done:{ends:false,arrows:false}};this.parts.set(key,part);}
-     let gone=false;
+     report(part);let gone=false;
      for(const collection of ['ends','arrows']){
       while(!part.done[collection]){
        const detail=await this.request({action:'history.detail',session_id:metadata.id,revision:metadata.revision,collection,cursor:part.cursor[collection]},identity,signal);
@@ -63,7 +66,7 @@
        if(detail.status==='gone'){gone=true;break;}
        if(!Array.isArray(detail.items)||detail.revision!==metadata.revision)throw error('invalid_history_detail');
        if(detail.next_cursor&&detail.next_cursor===part.cursor[collection])throw error('invalid_history_cursor');
-       part[collection].push(...detail.items);part.cursor[collection]=detail.next_cursor;part.done[collection]=!detail.next_cursor;
+       part[collection].push(...detail.items);part.cursor[collection]=detail.next_cursor;part.done[collection]=!detail.next_cursor;report(part);
       }
       if(gone)break;
      }
@@ -72,7 +75,7 @@
      const ordered=part.arrows.slice().sort((a,b)=>a.ordinal-b.ordinal);
      const endIds=new Set(part.ends.map(e=>e.id));if(ordered.some(a=>a.end_id&&!endIds.has(a.end_id)))throw error('invalid_history_parent');
      const completed=part.ends.slice().sort((a,b)=>a.ordinal-b.ordinal).map(e=>({id:e.id,arrows:ordered.filter(a=>a.end_id===e.id).map(arrow),endedAt:e.ended_at,arrowLimit:e.arrow_limit,sessionType:e.session_type,shootingDistance:e.shooting_distance,targetSize:e.target_size,notes:e.notes}));
-     sessions.push({...metadata,completed,current:ordered.filter(a=>!a.end_id).map(arrow)});onProgress(sessions.length);
+     sessions.push({...metadata,completed,current:ordered.filter(a=>!a.end_id).map(arrow)});endsLoaded+=part.ends.length;arrowsLoaded+=part.arrows.length;report();
     }
     cursor=page.next_cursor;
     if(cursor&&cursors.has(cursor))throw error('invalid_history_cursor');if(cursor)cursors.add(cursor);
