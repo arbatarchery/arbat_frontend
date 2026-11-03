@@ -60,3 +60,15 @@ test('invalid history JSON has a distinct safe diagnosis',async()=>{
  const api=reader(async()=>new Response('not JSON: private-token'));
  await assert.rejects(get(api),e=>e.code==='history_invalid_json'&&e.historyAction==='history.list'&&!e.message.includes('private-token'));
 });
+
+test('history reports real partial arrow pages and counts cached revisions once',async()=>{
+ const progress=[];const api=reader(async(_url,init)=>{const b=JSON.parse(init.body);
+  if(b.action==='history.list')return Response.json({status:'accepted',sessions:[metadata],next_cursor:null});
+  if(b.collection==='ends')return Response.json({status:'accepted',revision:3,items:[{id:'end',ordinal:1}],next_cursor:null});
+  return Response.json({status:'accepted',revision:3,items:b.cursor?[{id:'b',end_id:'end',ordinal:2}]:[{id:'a',end_id:'end',ordinal:1}],next_cursor:b.cursor?null:'cursor-A'});
+ });
+ const options={from:'2026-11-01',to:'2026-11-30',onProgress:(_count,details)=>progress.push(details)};
+ await api.get(options);assert.ok(progress.some(p=>p.sessions===0&&p.arrows===1));assert.deepEqual(progress.at(-1),{sessions:1,ends:1,arrows:2});
+ assert.ok(progress.every((p,i)=>!i||p.arrows>=progress[i-1].arrows));
+ progress.length=0;await api.get(options);assert.deepEqual(progress.at(-1),{sessions:1,ends:1,arrows:2});
+});

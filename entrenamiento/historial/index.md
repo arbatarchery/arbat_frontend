@@ -4,7 +4,7 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=7"
+  - "/entrenamiento/historial/css/historial.css?v=8"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
@@ -12,12 +12,12 @@ scripts:
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
-  - "/entrenamiento/js/sync-identity.js?v=4"
-  - "/entrenamiento/js/sync-history.js?v=3"
+  - "/entrenamiento/js/sync-identity.js?v=5"
+  - "/entrenamiento/js/sync-history.js?v=4"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=7"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=15"
+  - "/entrenamiento/historial/js/historial.js?v=16"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -53,6 +53,12 @@ scripts:
   </section>
 
   <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
+  <section id="historyLoading" class="history-loading" role="status" aria-live="polite" hidden>
+    <strong>Cargando datos de la nube</strong>
+    <p id="historyLoadingStage">Preparando tu sesión…</p>
+    <progress aria-label="Cargando datos de la nube"></progress>
+    <p id="historyLoadingCounts">Sesiones: 0 · Andanadas: 0 · Flechas: 0 · Arqueros: 0</p>
+  </section>
   <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><p id="historySyncDiagnostic" hidden></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta de la nube</button></div>
   <section class="history-card coach-panel" id="coachPanel" aria-labelledby="coachTitle" hidden>
     <div class="card-heading"><div><h2 id="coachTitle">Panel de entrenadores</h2><p id="coachScope"></p></div></div>

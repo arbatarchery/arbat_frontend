@@ -32,3 +32,14 @@ Desde `supabase/`, instalar dependencias con `npm ci`. Desde la raíz ejecutar `
 `node supabase/scripts/check-live-release.mjs` verifica las rutas normales preparadas en Chrome con datos simulados, sin contactar Supabase ni Buddy reales. `node supabase/scripts/check-coaching-ui.mjs` comprueba permisos, filtros, calendario mixto, errores y vistas móvil/escritorio. El entorno local requiere Chrome.
 
 La prueba de despliegue resuelve los recursos declarados por las páginas y ejecuta el JavaScript real. No sustituye el build completo de Jekyll ni la comprobación posterior de las cuentas reales.
+
+
+## Carga inicial del historial
+
+Historial espera a que Buddy termine de comprobar la sesión antes de consultar Supabase. Si una comprobación de sincronización concurrente no necesita crear credenciales, la lectura remota todavía puede preparar la identidad Buddy que necesita; no reutiliza ese resultado vacío como una falta de autenticación.
+
+Al iniciar o reintentar se retiran los avisos anteriores y se muestra «Cargando datos de la nube». La conexión se confirma con una respuesta de contexto o de historial aceptada por las funciones del servidor. Los contadores muestran sesiones, andanadas, flechas y arqueros realmente recibidos, incluidas páginas parciales. La consulta no informa un total previo, por lo que la barra es indeterminada y no muestra porcentajes estimados. Repetir eventos de la misma cuenta durante la carga no reinicia las consultas.
+
+La espera inicial de autenticación tiene un máximo de 45 segundos y se cancela al cambiar de cuenta o de período. Los errores reales y la falta de conexión mantienen el aviso de datos locales y su reintento. Un dispositivo anónimo sin datos en la nube no muestra un falso error de autenticación. No hay nuevas migraciones ni cambios en permisos para esta actualización.
+
+Prueba: `node supabase/scripts/check-history-loading.mjs` simula 25 segundos de preparación, avance de contadores, reintento tras un error, cuenta anónima, espera vencida y falta de conexión, sin contactar los servicios reales.
