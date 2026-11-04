@@ -4,7 +4,8 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=9"
+  - "/entrenamiento/css/recognitions.css?v=1"
+  - "/entrenamiento/historial/css/historial.css?v=10"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
@@ -17,6 +18,8 @@ scripts:
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-usage.js?v=1"
   - "/entrenamiento/js/sync-bootstrap.js?v=8"
+  - "/entrenamiento/js/recognitions.js?v=1"
+  - "/entrenamiento/js/recognitions-ui.js?v=1"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
   - "/entrenamiento/historial/js/history-details.js?v=1"
   - "/entrenamiento/historial/js/historial.js?v=18"
