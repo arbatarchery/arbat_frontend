@@ -29,7 +29,7 @@
         ? window.Buddy.auth.getUser()
         : null;
     const id=user&&(user.id??user._id??user.email);
-    if(id!=null&&String(id))return{id:String(id),name:String(user.name||user.firstName||user.email||'Usuario'),anonymous:false};
+    if(id!=null&&String(id))return{id:String(id),name:String(user.name||user.nombreCompleto||user.fullName||user.firstName||user.displayName||user.email||'Usuario'),anonymous:false};
     const anonymousId=anonymousDeviceId();
     return{id:`anon:${anonymousId}`,name:'',anonymous:true,anonymousId};
   };
@@ -453,11 +453,7 @@
   const constellationOverlay=$('constellationOverlay'), constellationImage=$('constellationImage');
   let constellationUrl='',constellationDate='';
   function constellationArrows(session=state){
-    return Array.isArray(session.arrows) ? session.arrows : [...(session.completed||[]).flatMap(e=>e.arrows||[]),...(session.current||[])];
-  }
-  function constellationMeasurement(key,session=state){
-    const values=(session.completed||[]).map(end=>end[key]).concat(session[key]).map(value=>String(value||'').trim()).filter(Boolean);
-    return [...new Set(values)].join(' / ');
+    return window.ArbatConstellation?.sessionArrows(session) || [];
   }
   function previousConstellationSession(){
     if(state.completed.some(end=>(end.arrows||[]).length) || state.current.length>=state.arrowsPerEnd)return null;
@@ -478,8 +474,7 @@
   function drawConstellation(session=state){
     const arrows=constellationArrows(session);
     if(!arrows.length)return false;
-    const shootingDistance=constellationMeasurement('shootingDistance',session),targetSize=constellationMeasurement('targetSize',session);
-    const sharedCanvas=window.ArbatConstellation&&window.ArbatConstellation.createCanvas({arrows,date:session.date,sessionType:session.sessionType,shootingDistance,targetSize,rounds:Array.isArray(session.completed)?session.completed.filter(e=>(e.arrows||[]).length).length+(session.current?.length?1:0):undefined,arrowsPerEnd:session.arrowsPerEnd});
+    const sharedCanvas=window.ArbatConstellation?.createSessionCanvas(session,ownerSnapshot());
     if(sharedCanvas){
       sharedCanvas.toBlob(blob=>{
         if(!blob)return;

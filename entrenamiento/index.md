@@ -8,7 +8,7 @@ estilos:
   - "/entrenamiento/css/entrenamiento.css?v=8"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=1.9"
+  - "/entrenamiento/js/constelacion.js?v=2.0"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
@@ -21,7 +21,7 @@ scripts:
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/js/sync-ui.js?v=6"
-  - "/entrenamiento/js/entrenamiento.js?v=15"
+  - "/entrenamiento/js/entrenamiento.js?v=16"
 ---
 
 <div class="app-entrenamiento">

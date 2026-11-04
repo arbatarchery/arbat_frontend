@@ -299,10 +299,6 @@
     const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : formatDate(date, { hour: '2-digit', minute: '2-digit' });
   }
 
-  function sessionMeasurement(session, key) {
-    const values = (session.completed || []).map(end => end[key]).concat(session[key]).map(value => String(value || '').trim()).filter(Boolean);
-    return [...new Set(values)].join(' / ');
-  }
 
   function sessionConstellation(session, index, totalSessions) {
     const section = document.createElement('section'); section.className = 'session-constellation';
@@ -310,15 +306,7 @@
     const start = timeValue(session.startedAt), end = timeValue(session.endedAt);
     heading.textContent = totalSessions > 1 ? `Sesión ${index + 1} · ${start}` : 'Constelación de la sesión';
     meta.textContent = `${session.arrows.length} flechas · ${start}${end !== '—' ? `–${end}` : ''}`;
-    const canvas = window.ArbatConstellation && window.ArbatConstellation.createCanvas({
-      arrows: session.arrows,
-      date: session.date,
-      sessionType: session.sessionType,
-      rounds: Array.isArray(session.completed) ? session.completed.filter(end => (end.arrows || []).length).length + (session.current && session.current.length ? 1 : 0) : undefined,
-      arrowsPerEnd: session.arrowsPerEnd,
-      shootingDistance: sessionMeasurement(session, 'shootingDistance'),
-      targetSize: sessionMeasurement(session, 'targetSize')
-    });
+    const canvas = window.ArbatConstellation?.createSessionCanvas(session, state.selectedUser || currentUser());
     if (canvas) {
       canvas.className = 'session-constellation-canvas';
       canvas.setAttribute('role', 'img');

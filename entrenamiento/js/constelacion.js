@@ -91,7 +91,7 @@
     });
   }
 
-  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '' } = {}) {
+  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '', owner = null } = {}) {
     const points = geometry(arrows), canvas = document.createElement('canvas');
     canvas.width = 1080; canvas.height = 1350;
     const ctx = canvas.getContext('2d');
@@ -118,11 +118,52 @@
       ctx.fillStyle = '#ffffff'; ctx.font = '600 42px Arial, sans-serif'; ctx.fillText(String(value), x, 1184, 200);
       ctx.fillStyle = '#b8cde2'; ctx.font = '20px Arial, sans-serif'; lines.forEach((line, j) => ctx.fillText(line, x, 1216 + j * 24));
     });
+    const ownerId = String(owner?.id ?? '').trim();
+    const athleteName = owner?.anonymous === false && ownerId && !/^(anon:|anonymous:|device:)/.test(ownerId)
+      ? String(owner.name || owner.nombreCompleto || owner.fullName || owner.firstName || owner.displayName || '').trim()
+      : '';
+    if (athleteName && athleteName !== 'Usuario' && !athleteName.includes('@')) {
+      ctx.fillStyle = '#ffffff'; ctx.font = '600 24px Arial, sans-serif';
+      ctx.fillText(athleteName, CX, 1260, 960);
+    }
     ctx.fillStyle = '#b8cde2'; ctx.font = '23px Arial, sans-serif'; ctx.fillText('arbatarchery.com', CX, 1290);
-    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('v1.9', CX, 1324);
+    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('V2.0', CX, 1324);
     return canvas;
   }
 
-  window.ArbatConstellation = { createCanvas };
+  function sessionArrows(session = {}) {
+    return Array.isArray(session.arrows) ? session.arrows
+      : [...(session.completed || []).flatMap(end => end.arrows || []), ...(session.current || [])];
+  }
+
+  function sessionMeasurement(session, key) {
+    const values = (session.completed || []).map(end => end[key]).concat(session[key])
+      .map(value => String(value ?? '').trim()).filter(Boolean);
+    return [...new Set(values)].join(' / ');
+  }
+
+  // One entry point for current, previous and historical sessions.
+  // A supplied profile can enrich only the session's own registered account.
+  function createSessionCanvas(session = {}, profile = null) {
+    let owner = session.owner || profile;
+    if (owner?.anonymous === false && profile?.anonymous === false &&
+        String(owner.id) === String(profile.id)) {
+      owner = {...owner, ...profile, name: String(profile.name || '').trim() || owner.name};
+    }
+    return createCanvas({
+      arrows: sessionArrows(session),
+      date: session.date,
+      sessionType: session.sessionType,
+      rounds: Array.isArray(session.completed)
+        ? session.completed.filter(end => (end.arrows || []).length).length + (session.current?.length ? 1 : 0)
+        : undefined,
+      arrowsPerEnd: session.arrowsPerEnd,
+      shootingDistance: sessionMeasurement(session, 'shootingDistance'),
+      targetSize: sessionMeasurement(session, 'targetSize'),
+      owner
+    });
+  }
+
+  window.ArbatConstellation = { createCanvas, createSessionCanvas, sessionArrows };
 })();
 
