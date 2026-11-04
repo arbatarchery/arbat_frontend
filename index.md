@@ -14,6 +14,24 @@ hero_cta_secundario_url: "#clases"
 
 <div class="ring-divider" aria-hidden="true"></div>
 
+<section class="tile" aria-labelledby="mi-primera-flecha">
+  <div class="wrap">
+    <h2 id="mi-primera-flecha">Mi primera flecha</h2>
+    <iframe
+      src="https://www.youtube-nocookie.com/embed/T1Y86fV1sPU?autoplay=0"
+      title="Mi primera flecha — Entrevistas a entrenadores y arqueros destacados de Bolivia"
+      width="1120"
+      height="630"
+      loading="lazy"
+      allow="encrypted-media; picture-in-picture; fullscreen"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen
+      style="display:block;width:100%;height:auto;aspect-ratio:16/9;border:0;">
+    </iframe>
+    <p>Entrevistas a entrenadores y arqueros destacados de Bolivia</p>
+  </div>
+</section>
+
 <div class="tile">
   <div class="wrap">
     <p class="section-label">Por qué arbat</p>
