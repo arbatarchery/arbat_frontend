@@ -6,13 +6,16 @@ whatsapp: "+591 76660577"
 instagram: "sebastian.ursarchery"
 foto: "/assets/images/Sebastian_Bedregal/sb_perfil.png"
 image: "/assets/images/Sebastian_Bedregal/sb_perfil.png"
-description: "Sebastián comenzó en el tiro con arco en 2020, motivado por la disciplina y el aprendizaje autodidacta durante la cuarentena. Un año después se incorporó al Club Jaguar, representando a su club y a su departamento en múltiples torneos oficiales."
+description: "Sebastián comenzó en el tiro con arco en 2020, motivado por la disciplina y el aprendizaje autodidacta durante la cuarentena. Un año después se incorporó al Club Jaguar, representando a su club y a su departamento en múltiples torneos oficiales. Sebastián también es socio fundador del Club Deportivo Nyctibius Archery (CDNA)."
 resumen: "Bicampeón nacional en la categoría 40 metros y entrenador certificado por World Archery (2024). Lideró a la Selección Nacional Sub-21 de Bolivia en los I Juegos Bolivarianos de la Juventud en Sucre, donde el equipo obtuvo medallas de plata y bronce en las modalidades recurvo, compuesto y equipo mixto. Especialista en metodología lineal para la enseñanza de tiro deportivo, desde la iniciación hasta el nivel de clubes."
 ---
 
 ## Perfil
 
 Sebastián comenzó en el tiro con arco en 2020, motivado por la disciplina y el aprendizaje autodidacta durante la cuarentena. Un año después se incorporó al Club Jaguar, representando a su club y a su departamento en múltiples torneos oficiales. Su compromiso con el crecimiento de este deporte lo llevó a cofundar la Escuela arbat junto a Raúl Suárez, y desde entonces se dedica a la formación técnica y al acompañamiento de nuevos arqueros.
+
+
+También es socio fundador del [Club Deportivo Nyctibius Archery (CDNA)](https://www.instagram.com/nyctibius.archery/).
 
 
 ## Trayectoria como deportista
