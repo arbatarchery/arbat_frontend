@@ -3,7 +3,7 @@ export const root=resolve(new URL('../../',import.meta.url).pathname);
 export const paths=['/entrenamiento/','/entrenamiento/historial/'];
 export async function buildPreview({cloudEnabled=false,historyEnabled=false}={}){
  const config=JSON.parse(await readFile(resolve(root,'entrenamiento/config/supabase.public.json'),'utf8'));
- const runtime={...config,enabled:cloudEnabled,historyEnabled:cloudEnabled&&historyEnabled,storagePrefix:'arbat-supabase-preview-v1:',storeName:'arbat-training-sync-preview-v1'};
+ const runtime={...config,usageEnabled:false,enabled:cloudEnabled,historyEnabled:cloudEnabled&&historyEnabled,storagePrefix:'arbat-supabase-preview-v1:',storeName:'arbat-training-sync-preview-v1'};
  const pages=new Map(),assets=new Set(['/entrenamiento/js/lib/auth-client.mjs']);
  const assetFiles=new Map([['/__preview/controls.js',resolve(root,'supabase/scripts/preview-controls.cjs')],['/__preview/buddy.js',resolve(root,'supabase/scripts/preview-buddy.cjs')]]);
  const buddyControls='<section class="preview-note" aria-label="Cuenta de prueba"><button id="previewBuddyStart" type="button">Probar con Buddy</button><button id="previewBuddyLogout" type="button" hidden>Cerrar sesión Buddy</button><form id="previewBuddyForm" hidden><label>Correo de Buddy <input id="previewBuddyEmail" type="email" autocomplete="email" required></label> <button id="previewBuddySend" type="submit">Enviar enlace de acceso</button></form><p id="previewBuddyStatus" role="status" aria-live="polite">Acceso opcional para probar el respaldo con tu cuenta.</p></section>';

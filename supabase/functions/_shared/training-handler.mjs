@@ -1,3 +1,4 @@
+import {verifyLocation,USAGE_UUID} from './location-proof.mjs';
 import { resolveBuddyPrincipal } from './buddy-principal.mjs';
 import { verifyBuddyAccessToken, BuddyIdentityError } from './buddy-identity.mjs';
 
@@ -43,7 +44,7 @@ function validateOperation(op) {
 
 // Only this server handler derives p_principal and p_buddy_subject. Never accept
 // them (or an owner_id) as request parameters. SQL RPCs are service_role-only.
-export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins=[], enabled=false, fetchImpl=globalThis.fetch, timeoutMs=5000}={}) {
+export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins=[], enabled=false, locationSigningSecret, fetchImpl=globalThis.fetch, timeoutMs=5000}={}) {
   const origins=new Set(allowedOrigins);
   return async request => {
     const origin=request.headers.get('origin');
@@ -60,41 +61,18 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
       const bearer=request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9._~-]+)$/i)?.[1];
       if(!bearer || bearer.length>8192) throw new HttpError(401,'supabase_session_required');
       const body=await readJsonLimited(request.body,131072,timeoutMs);
-      if(!body || Array.isArray(body) || body.schema_version!==1 || !['sync','claim','history.list','history.detail','history.context','history.coach','buddy.session'].includes(body.action)) throw new HttpError(400,'invalid_request');
-      const keys=body.action==='history.coach'?['schema_version','action','from','to','cursor','scope_hash']:body.action==='sync'?['schema_version','action','operations']:body.action==='history.list'?['schema_version','action','from','to','cursor','target_subject']:body.action==='history.detail'?['schema_version','action','session_id','revision','collection','cursor']:['schema_version','action'];
+      if(!body || Array.isArray(body) || body.schema_version!==1 || !['sync','claim','history.list','history.detail','history.context','history.coach','buddy.session','usage.record','usage.summary'].includes(body.action)) throw new HttpError(400,'invalid_request');
+      const keys=body.action==='usage.record'?['schema_version','action','event']:body.action==='usage.summary'?['schema_version','action','from','to']:body.action==='history.coach'?['schema_version','action','from','to','cursor','scope_hash']:body.action==='sync'?['schema_version','action','operations']:body.action==='history.list'?['schema_version','action','from','to','cursor','target_subject']:body.action==='history.detail'?['schema_version','action','session_id','revision','collection','cursor']:['schema_version','action'];
       if(Object.keys(body).some(k=>!keys.includes(k))) throw new HttpError(400,'unknown_request_fields');
       if(body.action==='sync') {
         if(!Array.isArray(body.operations)||!body.operations.length||body.operations.length>32) throw new HttpError(400,'invalid_batch');
         body.operations.forEach(validateOperation);
         if(body.operations.some(op=>op.session_id!==body.operations[0].session_id))throw new HttpError(400,'invalid_batch_sessions');
       }
-      if(['history.list','history.coach'].includes(body.action)&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.from||'')||!/^\d{4}-\d{2}-\d{2}$/.test(body.to||'')||body.target_subject!=null&&(typeof body.target_subject!=='string'||!body.target_subject.trim()||body.target_subject.length>256)))throw new HttpError(400,'invalid_history_range');
+      if(['history.list','history.coach','usage.summary'].includes(body.action)&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.from||'')||!/^\d{4}-\d{2}-\d{2}$/.test(body.to||'')||body.target_subject!=null&&(typeof body.target_subject!=='string'||!body.target_subject.trim()||body.target_subject.length>256)))throw new HttpError(400,'invalid_history_range');
       if(body.action.startsWith('history.')&&body.cursor!=null&&(typeof body.cursor!=='string'||!UUID.test(body.cursor)))throw new HttpError(400,'invalid_cursor');
       if(body.action==='history.detail'&&(!UUID.test(body.session_id||'')||!Number.isSafeInteger(body.revision)||body.revision<1||!['ends','arrows'].includes(body.collection)))throw new HttpError(400,'invalid_history_detail');
       if(body.action==='history.coach'&&body.scope_hash!=null&&(typeof body.scope_hash!=='string'||!/^[a-f0-9]{32}$/.test(body.scope_hash)))throw new HttpError(400,'invalid_scope');
-      const buddyToken=request.headers.get('x-buddy-access-token');
-      if(buddyToken!==null && (!TOKEN.test(buddyToken)||buddyToken.length>8192)) throw new HttpError(401,'buddy_session_unverified');
-      let identity=null,user;
-      if(bearer===publicKey){
-        if(!buddyToken)throw new HttpError(401,'buddy_session_required');
-        identity=await verifyBuddyAccessToken(buddyToken,{fetchImpl,timeoutMs,includeProfile:true});
-        const id=await resolveBuddyPrincipal(identity.subject,{url,serverKey,fetchImpl,readJson:readJsonLimited,timeoutMs});
-        if(!UUID.test(id||''))throw new HttpError(503,'buddy_bridge_unavailable');
-        user={id};
-      }else{
-        // Existing anonymous envelopes retain their original verified principal.
-        const auth=await fetchImpl(`${url}/auth/v1/user`,{method:'GET',headers:{apikey:publicKey,Authorization:`Bearer ${bearer}`},
-          redirect:'error',cache:'no-store',signal:AbortSignal.timeout(timeoutMs)});
-        if(!auth.ok) throw new HttpError(auth.status>=500?503:401,'supabase_session_unverified');
-        user=await readJsonLimited(auth.body,16384,timeoutMs);
-        if(typeof user?.id!=='string'||!UUID.test(user.id)) throw new HttpError(401,'supabase_session_unverified');
-        identity=buddyToken?await verifyBuddyAccessToken(buddyToken,{fetchImpl,timeoutMs,includeProfile:true}):null;
-      }
-      if(body.action==='buddy.session'){
-        if(!identity)throw new HttpError(401,'buddy_session_required');
-        return reply(200,{status:'accepted',principal_id:user.id,subject:identity.subject});
-      }
-      if(body.action==='claim'&&!identity) throw new HttpError(401,'buddy_session_required');
       const rpc=async(name,args,maxBytes=16384)=>{
         const headers={apikey:serverKey,'Content-Type':'application/json'};
         // Modern secret keys authenticate via apikey; legacy JWT server keys also
@@ -108,9 +86,53 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
           throw new HttpError(status,status===401?'claim_or_buddy_required':status===403?'not_owner':status===422?'operation_rejected':'server_unavailable');
         }
         if(name==='training_apply_batch'){if(!Array.isArray(result?.results)||result.results.length!==args.p_operations.length)throw new HttpError(503,'invalid_server_result');return result;}
-        if(!['accepted','conflict','rate_limited','quota_exceeded','changed','gone'].includes(result?.status)) throw new HttpError(503,'invalid_server_result');
+        if(!['accepted','conflict','rate_limited','quota_exceeded','changed','gone','session_pending'].includes(result?.status)) throw new HttpError(503,'invalid_server_result');
         return result;
       };
+      let usageEvent=null,location=null;
+      if(body.action==='usage.record'){
+        const e=body.event;
+        if(!e||Array.isArray(e)||typeof e!=='object'||Object.keys(e).some(k=>!['event_id','browser_id','kind','occurred_at','session_id','end_id','proof'].includes(k))
+          ||![e.event_id,e.browser_id].every(v=>typeof v==='string'&&USAGE_UUID.test(v))||!['history_open','end_location'].includes(e.kind)
+          ||typeof e.occurred_at!=='string'||!Number.isFinite(Date.parse(e.occurred_at))
+          ||e.kind==='end_location'&&![e.session_id,e.end_id].every(v=>typeof v==='string'&&USAGE_UUID.test(v))
+          ||e.kind==='history_open'&&(e.session_id!=null||e.end_id!=null))throw new HttpError(400,'invalid_usage_event');
+        try{location=await verifyLocation(e.proof,locationSigningSecret);}catch(error){throw new HttpError(error.message==='usage_disabled'?503:400,error.message);}
+        if(location.event_id!==e.event_id||location.browser_id!==e.browser_id||location.event_kind!==e.kind)throw new HttpError(400,'location_event_mismatch');
+        usageEvent={event_id:e.event_id,browser_id:e.browser_id,kind:e.kind,occurred_at:e.occurred_at,session_id:e.session_id??null,end_id:e.end_id??null,
+          observed_at:location.observed_at,city:location.city,region:location.region,country:location.country};
+      }
+      const buddyToken=request.headers.get('x-buddy-access-token');
+      if(buddyToken!==null && (!TOKEN.test(buddyToken)||buddyToken.length>8192)) throw new HttpError(401,'buddy_session_unverified');
+      let identity=null,user;
+      if(bearer===publicKey){
+        if(!buddyToken){
+          if(usageEvent?.kind==='history_open'){
+            const result=await rpc('training_record_usage',{p_principal:null,p_buddy_subject:null,p_event:usageEvent,p_rate_key:location.rate_key});
+            return reply(result.status==='rate_limited'?429:200,result);
+          }
+          throw new HttpError(401,'buddy_session_required');
+        }
+        identity=await verifyBuddyAccessToken(buddyToken,{fetchImpl,timeoutMs,includeProfile:true});
+        const id=await resolveBuddyPrincipal(identity.subject,{url,serverKey,fetchImpl,readJson:readJsonLimited,timeoutMs});
+        if(!UUID.test(id||''))throw new HttpError(503,'buddy_bridge_unavailable');
+        user={id};
+      }else{
+        // Existing anonymous envelopes retain their original verified principal.
+        const auth=await fetchImpl(`${url}/auth/v1/user`,{method:'GET',headers:{apikey:publicKey,Authorization:`Bearer ${bearer}`},
+          redirect:'error',cache:'no-store',signal:AbortSignal.timeout(timeoutMs)});
+        if(!auth.ok) throw new HttpError(auth.status>=500?503:401,'supabase_session_unverified');
+        user=await readJsonLimited(auth.body,16384,timeoutMs);
+        if(typeof user?.id!=='string'||!UUID.test(user.id)) throw new HttpError(401,'supabase_session_unverified');
+        identity=buddyToken?await verifyBuddyAccessToken(buddyToken,{fetchImpl,timeoutMs,includeProfile:true}):null;
+      }
+      if(usageEvent){const result=await rpc('training_record_usage',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_event:usageEvent,p_rate_key:location.rate_key});return reply(result.status==='rate_limited'?429:200,result);}
+      if(body.action==='usage.summary'){const result=await rpc('training_usage_summary',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_from:body.from,p_to:body.to},1048576);return reply(result.status==='rate_limited'?429:200,result);}
+      if(body.action==='buddy.session'){
+        if(!identity)throw new HttpError(401,'buddy_session_required');
+        return reply(200,{status:'accepted',principal_id:user.id,subject:identity.subject});
+      }
+      if(body.action==='claim'&&!identity) throw new HttpError(401,'buddy_session_required');
       if(body.action.startsWith('history.')){
         if(body.action==='history.context'){
           const result=await rpc('training_history_context',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_display_name:identity?.displayName??null,p_verified_email:identity?.verifiedEmail??null});

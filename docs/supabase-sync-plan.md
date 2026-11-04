@@ -42,6 +42,8 @@ Contrato propuesto: `POST /training-sync` con versión de esquema y operaciones 
 
 Aplicación remota transaccional por operación; idempotency key única por principal + operation_id, verificar también hash del payload para rechazar reutilización con otro contenido. Si hay conflicto de revisión, conservar ambas versiones y reconciliar; no usar fecha del cliente como last-write-wins. Reintentar fallos transitorios/429 con Retry-After; no repetir indefinidamente errores de validación/autorización. Confirmar cierre solo después de sus flechas y bajas pendientes.
 
+Actualización de requisito del propietario: los conflictos entre dispositivos se recibirán completos en una bandeja de la nube para resolución exclusiva de Administradores de la academia o SuperAdmin. El arquero continuará registrando sin elegir versiones ni resolver el conflicto. El guardado solo se confirmará tras una recepción completa e idempotente, conservando originales y versiones alternativas. Especificación y estado de implementación en `docs/supabase-review-location.md`.
+
 ## 4. Importación histórica sin pérdida
 
 1. Leer las claves actuales, el historial y todas las claves legadas de entrenamiento sin alterar su contenido; validar cada registro, aislar corruptos y reportarlos sin descartar el resto.
@@ -191,3 +193,6 @@ El propietario añadió arbatarchery.com en Cloudflare Turnstile y confirmó fun
 ### Confirmación visible de asignación a Buddy
 
 Aprobada por el propietario y preparada una notificación basada en la respuesta real de training_claim, sin contar sesiones locales como si ya se hubieran transferido en servidor. Guarda confirmación por cuenta/principal, evita sumar replays, muestra texto genérico cuando el conteo histórico es desconocido y oculta información al cambiar/salir de la cuenta. 171 pruebas y Chrome simulado aprobados. Rama remota feature/supabase-claim-confirmation, commit 29421ecfb05e3ca9d4099b481c197971bc967313; solo ocho archivos de la página de prueba. Pendiente fusión manual; no necesita migraciones ni Secrets nuevos.
+
+
+Actualización de ubicación solicitada: registrar ciudad aproximada automáticamente una vez por cada andanada terminada, sin esperar al cierre de la sesión. Avisar solo a Administrador/SuperAdmin cuando cambie entre andanadas de una sesión o entre sesiones consecutivas del mismo usuario. Las observaciones sin conexión o de importaciones se identifican como ubicación de la sincronización, no como ubicación del entrenamiento. Esta definición sustituye la propuesta anterior de una detección por sesión. Sigue en preparación; no se activó el registro. Detalle en `docs/supabase-review-location.md`.

@@ -38,3 +38,15 @@
 .training-history #historySyncRetry{color:#000;background:#fff;cursor:pointer}.training-history #historySyncRetry:focus-visible{outline:2px solid #111;outline-offset:3px}.training-history #historySyncDiagnostic{color:#303b45;font-size:.8rem;overflow-wrap:anywhere}
 
 .training-history .history-loading{display:grid;gap:8px;margin:0 0 16px;padding:16px;border:1px solid #cbd2d8;border-radius:12px;background:#f4f6f8;color:#111}.training-history .history-loading[hidden]{display:none}.training-history .history-loading p{margin:0;color:#303b45;font-size:.85rem}.history-loading progress{width:min(100%,420px);height:8px;accent-color:#ee7b2d}
+
+/* Additional detail is collapsible on phones and open on desktops. */
+.history-login{margin:1.5rem 0;padding:1.5rem;border:2px solid #ff6500;border-radius:18px;background:#fff8f1;color:#111}
+.history-login h2,.history-login p{color:#111}.history-privacy{font-size:.82rem;color:#545454;margin:1rem 0 1.5rem}
+.history-expand{margin:1.5rem 0}.history-expand>summary{cursor:pointer;font-weight:700;font-size:1.15rem;padding:.65rem 0}
+#historyCharts>summary{color:#111}.history-detail-filters{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}
+.history-detail-filters label{display:flex;flex-direction:column;gap:.3rem}.history-detail-filters select{color:#fff;background:#151d24;padding:.6rem;border:1px solid #647380;border-radius:8px}
+#historySessionTable table{width:100%;border-collapse:collapse;font-size:.9rem;white-space:nowrap}#historySessionTable th,#historySessionTable td{padding:.75rem;text-align:left;border-bottom:1px solid #53616d;vertical-align:top}
+#historySessionTable td p{white-space:normal;overflow-wrap:anywhere;max-width:40rem}#historySessionTable summary{cursor:pointer}#historySessionTable details{white-space:normal;min-width:15rem}
+#historyCompare{margin-top:1rem}#usageData table{width:100%;border-collapse:collapse}#usageData th,#usageData td{padding:.65rem;border-bottom:1px solid #53616d;text-align:left}#usageData h3{margin-top:1.5rem}#usageData p{overflow-wrap:anywhere}.usage-warning{padding:.6rem .8rem;border-left:3px solid #f99f35;background:#2b343e}
+@media(min-width:860px){.history-login{display:flex;flex-direction:column;align-items:flex-start}.history-authenticated .history-card:has(>#sessionList){display:none}}
+[hidden]{display:none!important}
