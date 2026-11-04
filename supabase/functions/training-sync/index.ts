@@ -4,6 +4,7 @@ import { createTrainingHandler } from '../_shared/training-handler.mjs';
 // These server-only environment variables must never be committed or sent in chat.
 Deno.serve(createTrainingHandler({
   url: Deno.env.get('SUPABASE_URL'),
+  locationSigningSecret: Deno.env.get('TRAINING_LOCATION_SIGNING_SECRET'),
   publicKey: Deno.env.get('TRAINING_PUBLIC_KEY'),
   serverKey: Deno.env.get('TRAINING_SERVER_KEY'),
   allowedOrigins: (Deno.env.get('TRAINING_ALLOWED_ORIGINS') ?? '').split(',').map(s => s.trim()).filter(Boolean),

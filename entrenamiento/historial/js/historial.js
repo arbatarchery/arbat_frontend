@@ -118,7 +118,7 @@
   }
 
   function selectedRange() {
-    const days = Number($('periodSelect').value) || 30;
+    const days = rawCurrentUser() ? Number($('periodSelect').value) || 30 : 7;
     const end = today(), start = addDays(end, -days + 1);
     return { days, start, end, startKey: dateKey(start), endKey: dateKey(end) };
   }
@@ -331,6 +331,8 @@
   }
 
   function dayDetails(day) {
+    if(!rawCurrentUser()){const note=document.createElement('p');note.textContent='Inicia sesión para abrir tus sesiones y constelaciones completas.';return note;}
+
     const content = document.createElement('div'); content.className = 'day-detail';
     const title = document.createElement('h3'); title.textContent = formatDate(parseLocalDate(day.date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const starts = day.sessions.map(session => session.startedAt).filter(Boolean).sort(), ends = day.sessions.map(session => session.endedAt).filter(Boolean).sort();
@@ -556,7 +558,7 @@
   function renderSessions(sessions) {
     const root = $('sessionList'); root.replaceChildren();
     if (!sessions.length) { const empty = document.createElement('p'); empty.className = 'empty-state'; empty.textContent = 'No hay sesiones registradas en este período.'; root.append(empty); return; }
-    sessions.slice().sort((a, b) => String(b.startedAt || b.date).localeCompare(String(a.startedAt || a.date))).slice(0, 12).forEach(session => {
+    sessions.slice().sort((a, b) => String(b.startedAt || b.date).localeCompare(String(a.startedAt || a.date))).slice(0, rawCurrentUser()?12:3).forEach(session => {
       const total = session.arrows.reduce((sum, arrow) => sum + valueOf(arrow), 0), average = session.arrows.length ? total / session.arrows.length : 0;
       const row = document.createElement('article'); row.className = 'session-row';
       const text = document.createElement('div'), title = document.createElement('h3'), meta = document.createElement('p');
@@ -665,9 +667,9 @@
   }
 
   async function render() {
-    const sequence=++state.renderSequence;closePopover();
+    const sequence=++state.renderSequence;closePopover();window.dispatchEvent(new CustomEvent('arbat:history-loading'));
     historyController?.abort();const controller=new AbortController();historyController=controller;const signal=controller.signal;
-    const range=selectedRange(),cloud=window.ArbatTrainingSync?.historyEnabled;
+    let range=selectedRange();const cloud=window.ArbatTrainingSync?.historyEnabled;
     historyError=null;historyFailure=null;$('historySyncNotice').hidden=true;$('historySyncDiagnostic').hidden=true;
     state.loading=Boolean(cloud);state.loadingCounts={sessions:0,ends:0,arrows:0,athletes:0};
     if(cloud){clearCoaching();$('trainingHistory').setAttribute('aria-busy','true');$('dataScope').textContent='Cargando datos de la nube.';updateHistoryLoading(sequence,'Preparando tu sesión…');}
@@ -675,6 +677,7 @@
     try{
       if(cloud)try{await waitForHistoryAuth(signal);}catch(error){if(signal.aborted)return;authFailure=error;}
       if(sequence!==state.renderSequence)return;
+      range=selectedRange();
       const signedUser=currentUser();
       if(state.ownUserId!==signedUser.id){state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
       user=state.selectedUser||currentUser();
@@ -702,6 +705,7 @@
     $('studentActivityLegend').hidden=!(state.coaching&&user.id===currentUser().id);
     resetChartViewport();
     renderIdentity(user,sessions.historySource||(!window.ArbatTrainingSync?.historyEnabled&&provider?'remote':'local'));renderKpis(sessions);renderCalendar(days);renderChart('volumeChart',days,'volume');renderChart('averageChart',days,'average');renderSessions(sessions);
+    window.dispatchEvent(new CustomEvent('arbat:history-loaded',{detail:{sessions,user,range,signal,role:state.verifiedRole}}));
     if($('historySyncNotice')){
       $('historySyncNotice').hidden=!historyError&&$('coachPanel').hidden;
       $('historySyncDiagnostic').hidden=!historyFailure;

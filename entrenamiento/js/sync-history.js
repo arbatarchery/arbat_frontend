@@ -35,6 +35,10 @@
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity)throw error('auth_required');
    return this.request({action:'history.context'},identity,signal);
   }
+  async usageSummary({from,to,signal}){
+   if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');
+   return this.request({action:'usage.summary',from,to},identity,signal);
+  }
   async coachOverview({from,to,signal,onProgress=()=>{}}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');
    let cursor=null,overview=null;const seen=new Set();

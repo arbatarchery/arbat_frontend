@@ -8,5 +8,5 @@ const license=(await readFile(new URL('../node_modules/@supabase/auth-js/LICENSE
 const tslib=(await readFile(new URL('../node_modules/tslib/LICENSE.txt',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
 await writeFile(new URL('AUTH-LICENSES.txt',output),`@supabase/auth-js 2.118.0\n${license}\n\ntslib 2.8.1\n${tslib}`);
 const raw=JSON.parse(await readFile(new URL('../../entrenamiento/config/supabase.public.json',import.meta.url),'utf8'));
-const config={enabled:raw.enabled===true,historyEnabled:raw.historyEnabled===true,url:raw.url,publishableKey:raw.publishableKey,...(raw.turnstileSiteKey?{turnstileSiteKey:raw.turnstileSiteKey}:{})};
+const config={enabled:raw.enabled===true,historyEnabled:raw.historyEnabled===true,usageEnabled:raw.usageEnabled===true,cityUrl:raw.cityUrl,url:raw.url,publishableKey:raw.publishableKey,...(raw.turnstileSiteKey?{turnstileSiteKey:raw.turnstileSiteKey}:{})};
 await writeFile(new URL('../../entrenamiento/js/sync-config.js',import.meta.url),`// Generated public configuration. Secrets are server-only.\nwindow.ArbatTrainingSyncConfig=window.ArbatTrainingSyncConfig||Object.freeze(${JSON.stringify(config,null,2)});\n`);

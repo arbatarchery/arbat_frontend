@@ -12,7 +12,7 @@
   if(user&&!(user.id??user._id))throw Object.assign(new Error('buddy_auth_required'),{code:'buddy_auth_required'});
   return {accountKey:user?String(user.id??user._id):null,buddyToken:window.Buddy?.auth?.getAccessToken?.()||null};
  },captchaProvider:config.captchaProvider||(()=>captcha?.take())}):null;
- let autoPrompt=null;
+ let autoPrompt=null,usage=null;
  let lastError=null,queue=Promise.resolve(),importPromise=null;const failed=[];
  const publish=detail=>{
   if(captchaProblem&&['captcha_required',captchaProblem.error].includes(detail.error))detail={...detail,error:captchaProblem.error,captchaCode:captchaProblem.code};
@@ -38,7 +38,7 @@
   // ever added to the legacy object, CSV or Buddy payload.
   const copy=JSON.parse(JSON.stringify(snapshot));
   queue=queue.then(async()=>{
-   try{const record=await store.capture(copy,options);lastError=failed.length?'local_storage_unavailable':null;publish({...await store.status(),state:record.issue?'error':config.enabled?'pending':'disabled',error:record.issue||lastError});engine.schedule(0);if(options.source==='current'&&copy.completed?.length)autoPrompt?.reachedEnd().catch(()=>{});return record;}
+   try{const record=await store.capture(copy,options);lastError=failed.length?'local_storage_unavailable':null;publish({...await store.status(),state:record.issue?'error':config.enabled?'pending':'disabled',error:record.issue||lastError});engine.schedule(0);if(options.source==='current')usage?.observe(record).catch(()=>{});if(options.source==='current'&&copy.completed?.length)autoPrompt?.reachedEnd().catch(()=>{});return record;}
    catch{failed.push({snapshot:copy,options});lastError='local_storage_unavailable';publish({state:'error',error:lastError,localSaved:options.legacySaved===true});return null;}
   });return queue;
  };
@@ -46,6 +46,7 @@
   historyEnabled:config.enabled===true&&config.historyEnabled===true,
   async savedAccount(legacyId){try{const row=await store.recoverCurrent();return row?.snapshot?.id===legacyId?row.accountKey:null;}catch{return null;}},
   async historyContext(options){if(!history)throw new Error('history_disabled');return history.context(options);},
+  async usageSummary(options){if(!history)throw new Error('history_disabled');return history.usageSummary(options);},
   async coachOverview(options){if(!history)throw new Error('history_disabled');return history.coachOverview(options);},
   async remoteHistory(options){if(!history)throw new Error('history_disabled');return history.get(options);},
   async authorizeHistory(){await captcha?.authorize();},
@@ -71,6 +72,16 @@
   async localSessions(){await queue;const ops=await store.readAll('operations'),counts=new Map();for(const op of ops)counts.set(op.sessionKey,(counts.get(op.sessionKey)||0)+1);return (await store.readAll('sessions')).filter(r=>r.snapshot).map(r=>({key:r.key,accountKey:r.accountKey,legacySaved:r.legacySaved,snapshot:r.snapshot,confirmedRevision:r.confirmedRevision,issue:r.issue,pending:counts.get(r.key)||0}));}
  };
  window.ArbatTrainingSync=api;
+ if(config.enabled===true&&config.usageEnabled===true&&window.ArbatSyncUsage){
+  usage=new window.ArbatSyncUsage.Usage({store,url:config.url,publicKey:config.publicKey,cityUrl:config.cityUrl,
+   identityProvider:async()=>{
+    const signed=window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.();
+    if(!signed){const registry=await store.meta(identity.registryKey);if(!registry?.buckets?.some(b=>b.principalId&&!b.accountKey))return null;}
+    return identity?.identity({forHistory:true});
+   },accountProvider:()=>{const user=window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.();return user?String(user.id??user._id):null;}});
+  if(/^\/entrenamiento\/historial\/?$/.test(window.location.pathname))usage.openHistory().catch(()=>{});
+  usage.start(window);api.usage=usage;
+ }
  for(const event of ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded'])window.addEventListener(event,()=>{api.authObserved=true;if(window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.())captcha?.cancel?.();});
  window.addEventListener('online',()=>{if(failed.length)api.retryLocal().catch(()=>{});});
  // Legacy import is scheduled after the initial application save so marking does

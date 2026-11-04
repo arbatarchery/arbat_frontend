@@ -4,7 +4,7 @@ title: "Mi historial de entrenamiento"
 description: "Resumen de sesiones, volumen de flechas y evolución del puntaje de tiro con arco."
 breadcrumb_hidden: true
 estilos:
-  - "/entrenamiento/historial/css/historial.css?v=8"
+  - "/entrenamiento/historial/css/historial.css?v=9"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=1.9"
@@ -13,11 +13,13 @@ scripts:
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=5"
-  - "/entrenamiento/js/sync-history.js?v=5"
+  - "/entrenamiento/js/sync-history.js?v=6"
   - "/entrenamiento/js/sync-captcha.js?v=3"
-  - "/entrenamiento/js/sync-bootstrap.js?v=7"
+  - "/entrenamiento/js/sync-usage.js?v=1"
+  - "/entrenamiento/js/sync-bootstrap.js?v=8"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=17"
+  - "/entrenamiento/historial/js/history-details.js?v=1"
+  - "/entrenamiento/historial/js/historial.js?v=18"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -32,6 +34,14 @@ scripts:
       <span><small id="athleteRole">Arquero</small><strong id="athleteName">Cargando…</strong></span>
     </div>
   </header>
+
+  <section class="history-login" id="historyLogin" hidden>
+    <h2>Reúne tu historial en todos tus dispositivos</h2>
+    <p>Sin cuenta ves el resumen de los últimos 7 días. Inicia sesión para consultar todas tus sesiones, andanadas, flechas y notas, y comparar períodos.</p>
+    <button type="button" class="history-button history-button--primary" id="historyLoginButton">Iniciar sesión</button>
+    <p id="historyLoginMessage" role="status"></p>
+  </section>
+  <p class="history-privacy">Registramos aperturas de Historial y la ciudad aproximada al abrirlo y al terminar una andanada, también sin cuenta. No solicitamos GPS ni guardamos tu IP completa. Solo administradores autorizados consultan estos datos de uso.</p>
 
   <section class="athlete-picker" id="athletePicker" aria-labelledby="athletePickerTitle" hidden>
     <div><h2 id="athletePickerTitle">Usuario consultado</h2><p>Disponible para entrenadores y administradores.</p></div>
@@ -84,12 +94,22 @@ scripts:
     <div class="activity-scroll"><div id="activityCalendar" class="activity-calendar" role="grid" aria-label="Calendario de días con entrenamiento"></div></div>
   </section>
 
+  <details id="historyCharts" class="history-expand"><summary>Gráficas de evolución</summary>
   <div class="chart-grid">
     <section class="history-card" aria-labelledby="volumeTitle"><div class="card-heading"><div><h2 id="volumeTitle">Volumen de flechas</h2><p>Cantidad registrada cada día. Zoom y desplazamiento sincronizados con Promedio diario.</p></div></div><div id="volumeChart" class="chart" role="img" aria-label="Gráfica de flechas por día. Su zoom y desplazamiento están sincronizados con la gráfica de promedio."></div></section>
     <section class="history-card" aria-labelledby="averageTitle"><div class="card-heading"><div><h2 id="averageTitle">Promedio diario</h2><p>Puntaje promedio por flecha. Zoom y desplazamiento sincronizados con Volumen de flechas.</p></div></div><div id="averageChart" class="chart" role="img" aria-label="Gráfica de promedio diario. Su zoom y desplazamiento están sincronizados con la gráfica de volumen."></div></section>
   </div>
 
+  </details>
+
   <section class="history-card" aria-labelledby="sessionsTitle"><div class="card-heading"><div><h2 id="sessionsTitle">Sesiones del período</h2><p>Las más recientes aparecen primero.</p></div></div><div id="sessionList" class="session-list"></div></section>
+  <details class="history-card history-expand" id="historyDetails" hidden><summary>Detalle completo de sesiones, andanadas y flechas</summary>
+    <p>Los filtros siguientes afectan solo a esta tabla y su distribución de puntajes.</p>
+    <div class="history-detail-filters"><label>Tipo <select id="detailType"><option value="">Todos</option><option value="training">Entrenamiento</option><option value="competition">Competencia</option></select></label><label>Distancia <select id="detailDistance"><option value="">Todas</option></select></label><label>Diana <select id="detailTarget"><option value="">Todas</option></select></label></div>
+    <p id="detailDistribution"></p><div id="historySessionTable" class="coach-table-scroll"></div>
+    <button type="button" class="history-button" id="historyCompare">Comparar con el período anterior</button><p id="historyComparison" role="status"></p>
+  </details>
+  <section class="history-card" id="usagePanel" hidden><h2>Uso y ciudades · Administración</h2><p>Fechas según Bolivia (America/La_Paz). Las aperturas son visitas, no personas únicas ni una medida de motivación. Ciudad aproximada por red; VPN o redes móviles pueden variar.</p><p id="usageMessage" role="status"></p><div id="usageData"></div></section>
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
   <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
 </div>
