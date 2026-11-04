@@ -91,7 +91,7 @@
     });
   }
 
-  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '' } = {}) {
+  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '', owner = null } = {}) {
     const points = geometry(arrows), canvas = document.createElement('canvas');
     canvas.width = 1080; canvas.height = 1350;
     const ctx = canvas.getContext('2d');
@@ -118,8 +118,16 @@
       ctx.fillStyle = '#ffffff'; ctx.font = '600 42px Arial, sans-serif'; ctx.fillText(String(value), x, 1184, 200);
       ctx.fillStyle = '#b8cde2'; ctx.font = '20px Arial, sans-serif'; lines.forEach((line, j) => ctx.fillText(line, x, 1216 + j * 24));
     });
+    const ownerId = String(owner?.id ?? '').trim();
+    const athleteName = owner?.anonymous === false && ownerId && !/^(anon:|anonymous:|device:)/.test(ownerId)
+      ? String(owner.name || owner.nombreCompleto || owner.fullName || owner.firstName || owner.displayName || '').trim()
+      : '';
+    if (athleteName && athleteName !== 'Usuario' && !athleteName.includes('@')) {
+      ctx.fillStyle = '#ffffff'; ctx.font = '600 24px Arial, sans-serif';
+      ctx.fillText(athleteName, CX, 1260, 960);
+    }
     ctx.fillStyle = '#b8cde2'; ctx.font = '23px Arial, sans-serif'; ctx.fillText('arbatarchery.com', CX, 1290);
-    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('v1.9', CX, 1324);
+    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('V2.0', CX, 1324);
     return canvas;
   }
 
