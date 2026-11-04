@@ -1,6 +1,7 @@
 (() => {
  'use strict';
  const $=id=>document.getElementById(id);
+ const desktopScreen=window.matchMedia('(min-width: 860px)');
  let loaded=null,sequence=0,comparisonController=null;
  const signed=()=>!!(window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.());
  const text=(tag,value)=>{const node=document.createElement(tag);node.textContent=String(value??'—');return node;};
@@ -10,11 +11,11 @@
  function accountView(){
   const authenticated=signed();$('trainingHistory')?.classList.toggle('history-authenticated',authenticated);
   if(!$('historyLogin'))return;
-  $('historyLogin').hidden=authenticated;$('historyDetails').hidden=!authenticated;$('historyCharts').hidden=!authenticated;
+  $('historyLogin').hidden=authenticated;$('historyDetails').hidden=!authenticated||!desktopScreen.matches;$('historyDesktopInvite').hidden=desktopScreen.matches;$('historyCharts').hidden=!authenticated;
   const select=$('periodSelect');select.disabled=!authenticated;if(!authenticated)select.value='7';
   if(!authenticated){$('historySessionTable').replaceChildren();$('usagePanel').hidden=true;}
  }
- function desktop(){const open=window.matchMedia('(min-width: 860px)').matches;for(const id of ['historyCharts','historyDetails'])$(id).open=open;}
+ function desktop(){const open=desktopScreen.matches;for(const id of ['historyCharts','historyDetails'])$(id).open=open;}
  function ends(session){
   const rows=(session.completed||[]).map((end,index)=>({...end,ordinal:index+1}));
   if(session.current?.length)rows.push({arrows:session.current,ordinal:rows.length+1,inProgress:true});
@@ -27,7 +28,7 @@
  function total(arrows){return arrows.reduce((sum,a)=>sum+score(a),0);}
  function distribution(arrows){const bins=new Map();for(const a of arrows){const label=String(a.label??a.score??'M');bins.set(label,(bins.get(label)||0)+1);}return ['X','10','9','8','7','6','5','4','3','2','1','M'].filter(k=>bins.has(k)).map(k=>`${k}: ${bins.get(k)}`).join(' · ')||'Sin flechas';}
  function renderDetails(){
-  if(!loaded||!signed())return;
+  if(!loaded||!signed()||!desktopScreen.matches)return;
   const root=$('historySessionTable');root.replaceChildren();
   const {node,body}=table(['Fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio','10 / X / M','Detalle y notas']);let all=[];
   for(const s of [...loaded.sessions].sort((a,b)=>String(b.startedAt||b.date).localeCompare(String(a.startedAt||a.date)))){
@@ -52,7 +53,7 @@
   if(!body.children.length)root.append(text('p','No hay sesiones con estos filtros.'));else root.append(node);
  }
  async function comparison(){
-  if(!loaded||!signed()||!window.ArbatTrainingSync?.remoteHistory)return;
+  if(!loaded||!signed()||!desktopScreen.matches||!window.ArbatTrainingSync?.remoteHistory)return;
   const token=sequence,view=loaded;comparisonController?.abort();comparisonController=new AbortController();const signal=AbortSignal.any([comparisonController.signal,view.signal]);
   $('historyCompare').disabled=true;$('historyComparison').textContent='Cargando el período anterior…';
   const key=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
@@ -86,6 +87,10 @@
   if(!signed())return;
   for(const [id,field] of [['detailDistance','shootingDistance'],['detailTarget','targetSize']]){const select=$(id),previous=select.value;select.replaceChildren(new Option('Todas',''));const values=[...new Set(view.sessions.flatMap(ends).map(e=>String(e[field]||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));for(const v of values)select.append(new Option(v,v));if(values.includes(previous))select.value=previous;}
   renderDetails();usage(view,sequence);
+ });
+ desktopScreen.addEventListener('change',()=>{
+  accountView();
+  if(desktopScreen.matches)renderDetails();else{comparisonController?.abort();$('historySessionTable').replaceChildren();$('historyComparison').textContent='';$('historyCompare').disabled=false;}
  });
  document.addEventListener('DOMContentLoaded',()=>{accountView();desktop();$('historyLoginButton')?.addEventListener('click',()=>{
   if(window.ArbatUser?.login)window.ArbatUser.login();else if(window.Buddy?.auth?.startAuthenticationPrompt)window.Buddy.auth.startAuthenticationPrompt();else $('historyLoginMessage').textContent='El inicio de sesión todavía se está preparando. Inténtalo de nuevo en unos segundos.';
