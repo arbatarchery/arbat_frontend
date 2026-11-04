@@ -131,6 +131,39 @@
     return canvas;
   }
 
-  window.ArbatConstellation = { createCanvas };
+  function sessionArrows(session = {}) {
+    return Array.isArray(session.arrows) ? session.arrows
+      : [...(session.completed || []).flatMap(end => end.arrows || []), ...(session.current || [])];
+  }
+
+  function sessionMeasurement(session, key) {
+    const values = (session.completed || []).map(end => end[key]).concat(session[key])
+      .map(value => String(value ?? '').trim()).filter(Boolean);
+    return [...new Set(values)].join(' / ');
+  }
+
+  // One entry point for current, previous and historical sessions.
+  // A supplied profile can enrich only the session's own registered account.
+  function createSessionCanvas(session = {}, profile = null) {
+    let owner = session.owner || profile;
+    if (owner?.anonymous === false && profile?.anonymous === false &&
+        String(owner.id) === String(profile.id)) {
+      owner = {...owner, ...profile, name: String(profile.name || '').trim() || owner.name};
+    }
+    return createCanvas({
+      arrows: sessionArrows(session),
+      date: session.date,
+      sessionType: session.sessionType,
+      rounds: Array.isArray(session.completed)
+        ? session.completed.filter(end => (end.arrows || []).length).length + (session.current?.length ? 1 : 0)
+        : undefined,
+      arrowsPerEnd: session.arrowsPerEnd,
+      shootingDistance: sessionMeasurement(session, 'shootingDistance'),
+      targetSize: sessionMeasurement(session, 'targetSize'),
+      owner
+    });
+  }
+
+  window.ArbatConstellation = { createCanvas, createSessionCanvas, sessionArrows };
 })();
 
