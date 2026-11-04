@@ -4,6 +4,7 @@ title: "Registro de entrenamiento"
 description: "Aplicación para registrar puntajes de entrenamiento de tiro con arco: anotá tus flechas en la diana, llevá el control de tus andanadas y generá la constelación de la sesión."
 breadcrumb_hidden: true
 estilos:
+  - "/entrenamiento/css/recognitions.css?v=1"
   - "/entrenamiento/css/entrenamiento.css?v=8"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
@@ -17,6 +18,8 @@ scripts:
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-usage.js?v=1"
   - "/entrenamiento/js/sync-bootstrap.js?v=8"
+  - "/entrenamiento/js/recognitions.js?v=1"
+  - "/entrenamiento/js/recognitions-ui.js?v=1"
   - "/entrenamiento/js/sync-ui.js?v=6"
   - "/entrenamiento/js/entrenamiento.js?v=15"
 ---
