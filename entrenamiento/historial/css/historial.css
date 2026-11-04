@@ -8,7 +8,7 @@
 .chart-grid{display:grid;gap:0}.chart{min-height:220px;overflow:hidden}.chart svg{display:block;width:100%;height:220px}.chart text{fill:var(--muted);font:11px system-ui,sans-serif}.chart .grid-line{stroke:#40505d;stroke-width:1}.chart .bar{fill:var(--orange)}.chart .trend{fill:none;stroke:#f3a46e;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.chart .dot{fill:#fff;stroke:var(--orange);stroke-width:2}.chart-empty{height:220px;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px}
 .session-list{display:grid;gap:8px}.session-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;padding:12px;border-radius:12px;background:var(--card2)}.session-row h3{margin:0;color:#fff;font-size:.95rem}.session-row p{color:var(--muted);font-size:.77rem}.session-score{text-align:right}.session-score strong{display:block;color:#fff;font-size:1.25rem}.session-score small{color:var(--muted);font-size:.68rem}.empty-state{padding:24px 10px;text-align:center;color:var(--muted)}
 .history-actions{display:grid;grid-template-columns:1fr;gap:9px;margin-top:16px}.history-button{min-height:50px;display:flex;align-items:center;justify-content:center;padding:10px 14px;border:2px solid #596672;border-radius:12px;color:var(--ink);font-weight:850;text-decoration:none;text-align:center}.history-button--primary{border-color:var(--orange);background:var(--orange);color:#1e2429}
-@media(min-width:720px){.history-header{flex-direction:row;align-items:center;justify-content:space-between}.athlete{max-width:330px}.kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.heat-legend{display:flex}.history-actions{grid-template-columns:1fr 1fr}.chart-grid .history-card{height:100%}}
+@media(min-width:720px){.history-header{flex-direction:row;align-items:center;justify-content:space-between}.athlete{max-width:330px}.kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.heat-legend{display:flex}.history-actions{grid-template-columns:1fr 1fr}.chart-grid .history-card{height:auto}}
 @media(max-width:430px){.period-bar{align-items:flex-start}.period-bar label{flex-direction:column;align-items:flex-end}.period-bar select{max-width:145px}.activity-calendar{gap:4px}.activity-weekday{font-size:.61rem}.activity-weekday-long{display:none}.activity-weekday-short{display:inline}.activity-day{min-height:38px;padding:5px;border-radius:6px}.activity-day-number{font-size:.7rem}}
 .athlete-picker{position:relative;display:grid;gap:12px;margin-bottom:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--card)}.athlete-picker[hidden]{display:none}.athlete-picker>div:first-child p{margin-top:3px;color:var(--muted);font-size:.79rem}.athlete-search{position:relative;min-width:0}.athlete-search label{display:block;margin-bottom:5px;color:var(--muted);font-size:.76rem;font-weight:750}.athlete-search input{width:100%;min-height:46px;padding:9px 12px;border:1px solid #5b6975;border-radius:10px;background:#151c23;color:#fff;font:inherit}.athlete-search input:focus-visible{outline:3px solid rgba(238,123,45,.36);border-color:var(--orange)}.athlete-search-status{min-height:1.2em;margin-top:5px!important;color:var(--muted);font-size:.7rem}.athlete-results{position:absolute;z-index:80;top:calc(100% - 18px);left:0;right:0;max-height:270px;overflow-y:auto;padding:5px;border:1px solid #53616d;border-radius:11px;background:#151c23;box-shadow:0 18px 40px rgba(0,0,0,.42)}.athlete-results[hidden]{display:none}.athlete-option{display:flex;width:100%;flex-direction:column;align-items:flex-start;gap:2px;padding:10px;border:0;border-radius:8px;background:transparent;color:#fff;text-align:left;cursor:pointer}.athlete-option:hover,.athlete-option:focus-visible,.athlete-option[aria-selected="true"]{background:var(--card2);outline:none}.athlete-option small{max-width:100%;overflow:hidden;color:var(--muted);font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}.athlete-results-empty{padding:13px;color:var(--muted);font-size:.8rem}
 .activity-day:is(button){appearance:none;width:100%;height:100%;cursor:pointer}.activity-day:is(button):focus-visible{outline:2px solid #fff;outline-offset:2px}.activity-day:is(button):hover{filter:brightness(1.22)}
@@ -48,5 +48,22 @@
 #historySessionTable table{width:100%;border-collapse:collapse;font-size:.9rem;white-space:nowrap}#historySessionTable th,#historySessionTable td{padding:.75rem;text-align:left;border-bottom:1px solid #53616d;vertical-align:top}
 #historySessionTable td p{white-space:normal;overflow-wrap:anywhere;max-width:40rem}#historySessionTable summary{cursor:pointer}#historySessionTable details{white-space:normal;min-width:15rem}
 #historyCompare{margin-top:1rem;color:#000}#usageData table{width:100%;border-collapse:collapse}#usageData th,#usageData td{padding:.65rem;border-bottom:1px solid #53616d;text-align:left}#usageData h3{margin-top:1.5rem}#usageData p{overflow-wrap:anywhere}.usage-warning{padding:.6rem .8rem;border-left:3px solid #f99f35;background:#2b343e}
-@media(min-width:860px){.history-login{display:flex;flex-direction:column;align-items:flex-start}.history-authenticated .history-card:has(>#sessionList){display:none}}
+@media(min-width:860px){.history-authenticated .history-sessions{display:none}}
 [hidden]{display:none!important}
+
+/* Native disclosure blocks keep their full content in the document flow. */
+.training-history>.history-expand{clear:both;min-width:0;margin:18px 0;position:static;height:auto}
+.training-history .history-expand>summary{cursor:pointer;font-weight:750;line-height:1.4;min-height:44px;padding:10px 0;overflow-wrap:anywhere}
+.training-history .history-expand>summary:focus-visible{outline:3px solid #ee7b2d;outline-offset:4px;border-radius:4px}
+.training-history .history-expand[open]>summary{margin-bottom:12px}
+.training-history .history-expand:not(.history-card)>summary{color:#111}
+.training-history .history-card>summary{color:#fff}
+.training-history .history-login>summary{color:#111}
+.training-history .coach-panel{margin-bottom:24px;isolation:isolate}
+.training-history .coach-panel+.history-summary{margin-top:24px}
+.training-history .coach-table-scroll{max-width:100%}
+.training-history .history-summary .kpi-grid{margin-bottom:0}
+.training-history .history-sessions>p{margin-bottom:12px}
+.training-history #arbatRecognitions>summary{color:#18343b}
+.history-mobile-invite{display:none}
+@media(max-width:859px){#historyDetails{display:none!important}.history-mobile-invite{display:block}}

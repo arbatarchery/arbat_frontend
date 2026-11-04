@@ -50,7 +50,19 @@ try{
  await page.evaluate(async()=>{window.__fail=false;await window.ArbatTrainingHistory.render();});
  await page.setViewportSize({width:390,height:900});await page.locator('#coachData').waitFor({state:'visible'});
  assert.equal(await mixed.locator('.activity-day-dots .activity-kind').count(),2);
+ await page.locator('#coachRoster button').evaluate(e=>{e.textContent='Arquero de prueba';});
  await mkdir(resolve(root,'output/coaching'),{recursive:true});await page.screenshot({path:resolve(root,'output/coaching/historial-mobile.png'),fullPage:true});
  await page.setViewportSize({width:1280,height:1000});await page.screenshot({path:resolve(root,'output/coaching/historial-desktop.png'),fullPage:true});
+ for(const width of [320,390,859,860,1280]){
+  await page.setViewportSize({width,height:1000});
+  for(const open of [true,false,true]){
+   if(await page.locator('#coachPanel').evaluate(e=>e.open)!==open)await page.locator('#coachTitle').click();
+   const panel=await page.locator('#coachPanel').boundingBox(),next=await page.locator('#historySummary').boundingBox();
+   assert.ok(next.y>=panel.y+panel.height+20,`Panel overlap at ${width}px`);
+   if(!open)assert.equal(await page.locator('#coachData').isVisible(),false);
+  }
+  assert.equal(await page.locator('#athletePicker').evaluate(e=>e.tagName),'SECTION');
+  assert.equal(await page.locator('.period-bar').evaluate(e=>e.tagName),'SECTION');
+ }
  assert.deepEqual(errors,[]);console.log('Panel, roles, filtro, calendario de tres colores, revocación, errores y móvil: correctos.');
 }finally{await browser.close();}

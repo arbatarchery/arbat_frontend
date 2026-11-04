@@ -19,7 +19,7 @@ scripts:
   - "/entrenamiento/js/sync-usage.js?v=1"
   - "/entrenamiento/js/sync-bootstrap.js?v=8"
   - "/entrenamiento/js/recognitions.js?v=1"
-  - "/entrenamiento/js/recognitions-ui.js?v=1"
+  - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/js/sync-ui.js?v=6"
   - "/entrenamiento/js/entrenamiento.js?v=15"
 ---

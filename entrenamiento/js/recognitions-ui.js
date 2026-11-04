@@ -86,11 +86,11 @@
     for(const record of result.records)box.append(card(record));if(result.ordinary)box.append(card(result.ordinary));
     if(box.children.length)show('Tu evolución deportiva',box);
   });
-  window.addEventListener('arbat:history-loading',()=>{document.getElementById('arbatRecognitions')?.replaceChildren();dialog?.close();});
+  window.addEventListener('arbat:history-loading',()=>{const root=document.getElementById('arbatRecognitions');if(root){root.replaceChildren();root.hidden=true;}dialog?.close();});
   window.addEventListener('arbat:history-loaded',event=>{
     const {sessions,user}=event.detail;let root=document.getElementById('arbatRecognitions');
-    if(!root){root=element('section');root.id='arbatRecognitions';document.getElementById('sessionList')?.before(root);}
-    root.replaceChildren(element('h2','Tu evolución deportiva'),element('p','Comparaciones basadas en las sesiones disponibles del período seleccionado.'));
+    if(!root){root=element('details');root.open=true;root.className='history-expand';root.id='arbatRecognitions';const list=document.getElementById('sessionList');(list?.closest('.history-sessions')||list)?.before(root);}
+    root.hidden=false;root.replaceChildren(element('summary','Tu evolución deportiva'),element('p','Comparaciones basadas en las sesiones disponibles del período seleccionado.'));
     const ordered=engine.unique(sessions).filter(s=>s.endedAt&&!s.isCurrent).sort((a,b)=>Date.parse(b.startedAt||b.date)-Date.parse(a.startedAt||a.date));
     for(const session of ordered.slice(0,12)){
       const scoped=sessions.map(s=>({...s,owner:{id:user.id}}));
@@ -104,6 +104,6 @@
       if(last){const button=element('button','Ver mi resumen mensual');button.type='button';button.className='btn';button.addEventListener('click',()=>show('Tu entrenamiento en números',monthlyCard(saved[last])));root.append(button);}
     }
   });
-  for(const name of ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded'])window.addEventListener(name,()=>{if(scope!==identity()){dialog?.close();document.getElementById('arbatRecognitions')?.replaceChildren();}refresh();});
+  for(const name of ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded'])window.addEventListener(name,()=>{if(scope!==identity()){dialog?.close();const root=document.getElementById('arbatRecognitions');if(root){root.replaceChildren();root.hidden=true;}}refresh();});
   document.addEventListener('DOMContentLoaded',()=>{refresh();});
 })();
