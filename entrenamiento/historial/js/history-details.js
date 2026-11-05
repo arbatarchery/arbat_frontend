@@ -75,20 +75,27 @@
    data.append(text('h3','Ciudades observadas'));const cities=table(['Ciudad','Región / país','Usuarios','Aperturas','Andanadas','Última observación']);
    report.cities.forEach(c=>{
     const row=document.createElement('tr');row.append(text('td',c.city),text('td',[c.region,c.country].filter(Boolean).join(' / ')));
-    const cell=document.createElement('td'),details=document.createElement('details');
-    details.append(text('summary',Array.isArray(c.users)?`Ver usuarios (${number(c.users_total??c.users.length)})`:'Usuarios no disponibles'));
+    const cell=document.createElement('td'),toggle=text('button',Array.isArray(c.users)?`Ver usuarios (${number(c.users_total??c.users.length)})`:'Usuarios no disponibles');
+    toggle.type='button';toggle.className='city-users-toggle';toggle.setAttribute('aria-expanded','false');cell.append(toggle);row.append(cell);
+    [number(c.opens),number(c.ends),time(c.last_seen)].forEach(value=>row.append(text('td',value)));cities.body.append(row);
+    const userRows=[];
+    const appendRow=tr=>{tr.hidden=true;tr.className='city-user-row';userRows.push(tr);cities.body.append(tr);};
+    const notice=message=>{const tr=document.createElement('tr'),td=text('td',message);td.colSpan=6;tr.append(td);appendRow(tr);};
     if(Array.isArray(c.users)){
-     const users=table(['Usuario / navegador','Aperturas','Andanadas','Última observación']);
      c.users.forEach(user=>{
       const tr=document.createElement('tr'),name=document.createElement('td');
-      if(user.subject){const button=text('button',user.name);button.type='button';button.addEventListener('click',()=>window.ArbatTrainingHistory?.selectAthlete(user.subject));name.append(button);}else name.textContent=user.name;
-      tr.append(name);[number(user.opens),number(user.ends),time(user.last_seen)].forEach(value=>tr.append(text('td',value)));users.body.append(tr);
+      name.className='city-user-name';
+      if(user.subject){const button=text('button',user.name);button.type='button';button.className='city-user-link';button.addEventListener('click',()=>window.ArbatTrainingHistory?.selectAthlete(user.subject));name.append(button);}else name.textContent=user.name;
+      tr.append(text('td',''),text('td',''),name);
+      [number(user.opens),number(user.ends),time(user.last_seen)].forEach(value=>tr.append(text('td',value)));appendRow(tr);
      });
-     details.append(users.node);
-     if(!c.users.length)details.append(text('p','Sin usuarios registrados para esta ciudad.'));
-     if(c.users_total>c.users.length)details.append(text('p',`Se muestran los ${c.users.length} usuarios o navegadores con observación más reciente. Los totales de la ciudad incluyen todos.`));
-    }else details.append(text('p','El detalle de usuarios por ciudad todavía no está disponible.'));
-    cell.append(details);row.append(cell);[number(c.opens),number(c.ends),time(c.last_seen)].forEach(value=>row.append(text('td',value)));cities.body.append(row);
+     if(!c.users.length)notice('Sin usuarios registrados para esta ciudad.');
+     if(c.users_total>c.users.length)notice(`Se muestran los ${c.users.length} usuarios o navegadores con observación más reciente. Los totales de la ciudad incluyen todos.`);
+    }else notice('El detalle de usuarios por ciudad todavía no está disponible.');
+    toggle.addEventListener('click',()=>{
+     const expanded=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(expanded));
+     userRows.forEach(tr=>{tr.hidden=!expanded;});
+    });
    });const cityScroll=document.createElement('div');cityScroll.className='coach-table-scroll';cityScroll.append(cities.node);data.append(cityScroll);
    data.append(text('h3','Frecuencia de consulta de historial'));const visitors=table(['Arquero / navegador','Aperturas','Días de consulta','Navegadores','Ciudades / países','Última apertura','Última ciudad']);
    report.visitors.forEach(v=>{const row=document.createElement('tr');[v.name,v.opens,v.days,v.browsers,`${v.cities} / ${v.countries}`,time(v.last_open),v.last_city].forEach(value=>row.append(text('td',value)));visitors.body.append(row);});const scroll=document.createElement('div');scroll.className='coach-table-scroll';scroll.append(visitors.node);data.append(scroll);

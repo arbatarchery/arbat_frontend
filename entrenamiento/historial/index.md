@@ -5,7 +5,7 @@ description: "Resumen de sesiones, volumen de flechas y evolución del puntaje d
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/recognitions.css?v=1"
-  - "/entrenamiento/historial/css/historial.css?v=13"
+  - "/entrenamiento/historial/css/historial.css?v=14"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=2.0"
@@ -21,7 +21,7 @@ scripts:
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/history-details.js?v=4"
+  - "/entrenamiento/historial/js/history-details.js?v=5"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/historial.js?v=21"
 ---
