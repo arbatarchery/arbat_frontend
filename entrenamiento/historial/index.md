@@ -16,7 +16,7 @@ scripts:
   - "/entrenamiento/js/sync-identity.js?v=5"
   - "/entrenamiento/js/sync-history.js?v=6"
   - "/entrenamiento/js/sync-captcha.js?v=3"
-  - "/entrenamiento/js/sync-usage.js?v=1"
+  - "/entrenamiento/js/sync-usage.js?v=2"
   - "/entrenamiento/js/sync-bootstrap.js?v=8"
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
