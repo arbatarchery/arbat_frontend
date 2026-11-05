@@ -2,7 +2,7 @@
  'use strict';
  const $=id=>document.getElementById(id);
  const desktopScreen=window.matchMedia('(min-width: 860px)');
- let loaded=null,sequence=0,comparisonController=null;
+ let loaded=null,sequence=0;
  const signed=()=>!!(window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.());
  const text=(tag,value)=>{const node=document.createElement(tag);node.textContent=String(value??'—');return node;};
  const number=n=>Number(n||0).toLocaleString('es-BO',{maximumFractionDigits:2});
@@ -30,41 +30,37 @@
  function renderDetails(){
   if(!loaded||!signed()||!desktopScreen.matches)return;
   const root=$('historySessionTable');root.replaceChildren();
-  const {node,body}=table(['Fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio','10 / X / M','Detalle y notas']);let all=[];
+  const {node,body}=table(['Fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio','Detalle y notas']);let all=[];
   for(const s of [...loaded.sessions].sort((a,b)=>String(b.startedAt||b.date).localeCompare(String(a.startedAt||a.date)))){
    const included=filtered(s);if(!included.length)continue;
    const arrows=included.flatMap(e=>e.arrows||[]);all.push(...arrows);const row=document.createElement('tr');
    const settings=[...new Set(included.map(e=>`${e.sessionType==='competition'?'Competencia':'Entrenamiento'} · ${e.shootingDistance||'—'} · ${e.targetSize||'—'}`))].join(' / ');
-   [time(s.startedAt||s.date),settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—',
-    ['10','X','M'].map(k=>arrows.filter(a=>String(a.label)===k).length).join(' / ')].forEach(v=>row.append(text('td',v)));
+   [time(s.startedAt||s.date),settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—'].forEach(v=>row.append(text('td',v)));
    const cell=document.createElement('td'),details=document.createElement('details');details.append(text('summary','Ver andanadas y flechas'));
-   details.append(text('p',`Final: ${s.isCurrent?'En curso':time(s.endedAt)}${s.notes?' · Notas: '+s.notes:''}`));
-   // Build potentially large arrow details only when the session is expanded.
-   details.addEventListener('toggle',()=>{if(!details.open||details.dataset.built)return;details.dataset.built='1';
-    for(const e of included){const points=total(e.arrows||[]),end=document.createElement('details');
+   cell.append(details);row.append(cell);body.append(row);
+   const expandedRow=document.createElement('tr'),expandedCell=document.createElement('td');expandedCell.colSpan=7;expandedRow.className='history-expanded-session';expandedRow.hidden=true;expandedRow.append(expandedCell);body.append(expandedRow);
+   // Build only this session's ends when expanded, and each constellation on its own toggle.
+   details.addEventListener('toggle',()=>{
+    expandedRow.hidden=!details.open;if(!details.open||details.dataset.built)return;details.dataset.built='1';
+    expandedCell.append(text('p',`Final: ${s.isCurrent?'En curso':time(s.endedAt)}${s.notes?' · Notas: '+s.notes:''}`));
+    for(const e of included){const points=total(e.arrows||[]),end=document.createElement('details');end.className='history-end';
      end.append(text('summary',`Andanada ${e.ordinal}${e.inProgress?' · En curso':''} · ${(e.arrows||[]).length} flechas · ${number(points)} puntos · Promedio ${e.arrows?.length?number(points/e.arrows.length):'—'}`));
-     end.append(text('p',`Final: ${time(e.endedAt)}${e.notes?' · Notas: '+e.notes:''}`));
-     const t=table(['Flecha','Puntaje','Fecha y hora','Impacto X','Impacto Y']);
-     (e.arrows||[]).forEach((a,index)=>{const tr=document.createElement('tr');[index+1,a.label??a.score,time(a.recordedAt),Number.isFinite(a.x)?number(a.x):'—',Number.isFinite(a.y)?number(a.y):'—'].forEach(v=>tr.append(text('td',v)));t.body.append(tr);});end.append(t.node);details.append(end);
+     end.addEventListener('toggle',()=>{
+      if(!end.open||end.dataset.built)return;end.dataset.built='1';
+      end.append(text('p',`Final: ${time(e.endedAt)}${e.notes?' · Notas: '+e.notes:''}`));
+      const layout=document.createElement('div');layout.className='history-end-layout';
+      const figure=document.createElement('figure');figure.className='history-end-constellation';
+      figure.append(text('figcaption',`Constelación · Andanada ${e.ordinal}`));
+      if(window.ArbatConstellation?.createEndCanvas){const canvas=window.ArbatConstellation.createEndCanvas(e.arrows||[]);canvas.setAttribute('role','img');canvas.setAttribute('aria-label',`Constelación de las ${e.arrows?.length||0} flechas de la andanada ${e.ordinal}`);figure.append(canvas);}else figure.append(text('p','Constelación no disponible.'));
+      const t=table(['Flecha','Puntaje y dirección horaria','Fecha y hora']);
+      (e.arrows||[]).forEach((a,index)=>{const tr=document.createElement('tr');[index+1,window.ArbatHistoryArrowDetails.clockLabel(a),time(a.recordedAt)].forEach(v=>tr.append(text('td',v)));t.body.append(tr);});
+      const scroll=document.createElement('div');scroll.className='history-end-arrows';scroll.append(t.node);layout.append(figure,scroll);end.append(layout);
+     });expandedCell.append(end);
     }
-   });cell.append(details);row.append(cell);body.append(row);
+   });
   }
   $('detailDistribution').textContent=`Distribución de puntajes de la tabla · ${all.length} flechas · ${distribution(all)}`;
   if(!body.children.length)root.append(text('p','No hay sesiones con estos filtros.'));else root.append(node);
- }
- async function comparison(){
-  if(!loaded||!signed()||!desktopScreen.matches||!window.ArbatTrainingSync?.remoteHistory)return;
-  const token=sequence,view=loaded;comparisonController?.abort();comparisonController=new AbortController();const signal=AbortSignal.any([comparisonController.signal,view.signal]);
-  $('historyCompare').disabled=true;$('historyComparison').textContent='Cargando el período anterior…';
-  const key=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
-  const end=new Date(view.range.start);end.setDate(end.getDate()-1);const start=new Date(end);start.setDate(start.getDate()-view.range.days+1);
-  try{const prior=await window.ArbatTrainingSync.remoteHistory({from:key(start),to:key(end),targetSubject:view.user.id===view.ownId?null:view.user.id,signal});
-   if(token!==sequence||!signed())return;
-   const previous=(Array.isArray(prior)?prior:prior.sessions||[]).flatMap(s=>s.arrows||[...(s.completed||[]).flatMap(e=>e.arrows||[]),...(s.current||[])]),current=view.sessions.flatMap(s=>s.arrows||[]);
-   const average=list=>list.length?number(total(list)/list.length):'—';
-   $('historyComparison').textContent=`Períodos completos, sin filtros de tabla. Actual: ${current.length} flechas, promedio ${average(current)}. Anterior (${key(start)} — ${key(end)}): ${previous.length} flechas, promedio ${average(previous)}.`;
-  }catch{if(token===sequence&&!signal.aborted)$('historyComparison').textContent='No se pudo cargar la comparación. Puedes reintentar.';}
-  finally{if(token===sequence)$('historyCompare').disabled=false;}
  }
  async function usage(view,token){
   const panel=$('usagePanel');panel.hidden=!['admin','superadmin'].includes(view.role);$('usageData').replaceChildren();if(panel.hidden)return;
@@ -104,18 +100,18 @@
    report.alerts.forEach(a=>{const note=text('p',`${a.name} · ${a.kind==='within_session'?'Distintas ciudades en una sesión':'Ciudad distinta entre sesiones'} · ${a.kind==='within_session'?(a.cities_observed||[]).join(' / '):a.previous_city+' → '+a.city} · ${time(a.first_at)}. Es un aviso informativo; revisa la red o ubicación aproximada.`);note.className='usage-warning';data.append(note);});
   }catch{if(token===sequence)$('usageMessage').textContent='Los datos de uso todavía no están disponibles. El entrenamiento y su historial siguen funcionando.';}
  }
- window.addEventListener('arbat:history-loading',()=>{sequence++;loaded=null;comparisonController?.abort();accountView();if($('historyDetails')){$('historyDetails').hidden=true;$('usagePanel').hidden=true;$('historySessionTable').replaceChildren();$('historyComparison').textContent='';$('historyCompare').disabled=false;}});
+ window.addEventListener('arbat:history-loading',()=>{sequence++;loaded=null;accountView();if($('historyDetails')){$('historyDetails').hidden=true;$('usagePanel').hidden=true;$('historySessionTable').replaceChildren();}});
  window.addEventListener('arbat:history-loaded',event=>{
-  const view=event.detail;loaded={...view,ownId:String((window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.())?.id??(window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.())?._id??'')};accountView();
+  const view=event.detail;loaded=view;accountView();
   if(!signed())return;
   for(const [id,field] of [['detailDistance','shootingDistance'],['detailTarget','targetSize']]){const select=$(id),previous=select.value;select.replaceChildren(new Option('Todas',''));const values=[...new Set(view.sessions.flatMap(ends).map(e=>String(e[field]||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));for(const v of values)select.append(new Option(v,v));if(values.includes(previous))select.value=previous;}
   renderDetails();usage(view,sequence);
  });
  desktopScreen.addEventListener('change',()=>{
   accountView();
-  if(desktopScreen.matches)renderDetails();else{comparisonController?.abort();$('historySessionTable').replaceChildren();$('historyComparison').textContent='';$('historyCompare').disabled=false;}
+  if(desktopScreen.matches)renderDetails();else{$('historySessionTable').replaceChildren();}
  });
  document.addEventListener('DOMContentLoaded',()=>{accountView();desktop();$('historyLoginButton')?.addEventListener('click',()=>{
   if(window.ArbatUser?.login)window.ArbatUser.login();else if(window.Buddy?.auth?.startAuthenticationPrompt)window.Buddy.auth.startAuthenticationPrompt();else $('historyLoginMessage').textContent='El inicio de sesión todavía se está preparando. Inténtalo de nuevo en unos segundos.';
- });for(const id of ['detailType','detailDistance','detailTarget'])$(id)?.addEventListener('change',renderDetails);$('historyCompare')?.addEventListener('click',comparison);});
+ });for(const id of ['detailType','detailDistance','detailTarget'])$(id)?.addEventListener('change',renderDetails);});
 })();

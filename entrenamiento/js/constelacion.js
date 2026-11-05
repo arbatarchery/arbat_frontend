@@ -164,6 +164,15 @@
     });
   }
 
-  window.ArbatConstellation = { createCanvas, createSessionCanvas, sessionArrows };
+  // End-only view: same measured geometry and rendering, without session totals.
+  function createEndCanvas(arrows = []) {
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=1080;
+    const ctx=canvas.getContext('2d'),points=geometry(arrows);
+    ctx.fillStyle='#000000';ctx.fillRect(0,0,1080,1080);
+    ctx.translate(0,-110);drawTarget(ctx,points);drawNebula(ctx,points);drawStars(ctx,points);
+    return canvas;
+  }
+
+  window.ArbatConstellation = { createCanvas, createSessionCanvas, sessionArrows, createEndCanvas };
 })();
 
