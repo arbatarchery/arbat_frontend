@@ -2,7 +2,7 @@
  'use strict';
  class Usage{
   constructor({store,url,publicKey,cityUrl,identityProvider,accountProvider=()=>null,fetchImpl=globalThis.fetch,cryptoImpl=globalThis.crypto,now=()=>Date.now(),online=()=>globalThis.navigator?.onLine!==false}={}){
-   Object.assign(this,{store,url,publicKey,cityUrl,identityProvider,accountProvider,fetchImpl,cryptoImpl,now,online});this.startedAt=now();this.owner=cryptoImpl.randomUUID();this.chain=Promise.resolve();this.timer=null;
+   Object.assign(this,{store,url,publicKey,cityUrl,identityProvider,accountProvider,fetchImpl:fetchImpl.bind(globalThis),cryptoImpl,now,online});this.startedAt=now();this.owner=cryptoImpl.randomUUID();this.chain=Promise.resolve();this.timer=null;
   }
   async browser(){return this.store.changeMeta('usage-browser',old=>old||this.cryptoImpl.randomUUID());}
   async enqueue(kind,{session_id,end_id,occurred_at}={},key){
