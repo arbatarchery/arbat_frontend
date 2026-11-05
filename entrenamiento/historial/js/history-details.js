@@ -30,18 +30,18 @@
  function renderDetails(){
   if(!loaded||!signed()||!desktopScreen.matches)return;
   const root=$('historySessionTable');root.replaceChildren();
-  const {node,body}=table(['Fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio','Detalle y notas']);let all=[];
+  const {node,body}=table(['Detalle','Fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio']);let all=[];
   for(const s of [...loaded.sessions].sort((a,b)=>String(b.startedAt||b.date).localeCompare(String(a.startedAt||a.date)))){
    const included=filtered(s);if(!included.length)continue;
    const arrows=included.flatMap(e=>e.arrows||[]);all.push(...arrows);const row=document.createElement('tr');
    const settings=[...new Set(included.map(e=>`${e.sessionType==='competition'?'Competencia':'Entrenamiento'} · ${e.shootingDistance||'—'} · ${e.targetSize||'—'}`))].join(' / ');
    [time(s.startedAt||s.date),settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—'].forEach(v=>row.append(text('td',v)));
-   const cell=document.createElement('td'),details=document.createElement('details');details.append(text('summary','Ver andanadas y flechas'));
-   cell.append(details);row.append(cell);body.append(row);
+   const cell=document.createElement('td'),details=document.createElement('details'),summary=text('summary','Más');details.className='history-session-toggle';details.append(summary);
+   cell.append(details);row.prepend(cell);body.append(row);
    const expandedRow=document.createElement('tr'),expandedCell=document.createElement('td');expandedCell.colSpan=7;expandedRow.className='history-expanded-session';expandedRow.hidden=true;expandedRow.append(expandedCell);body.append(expandedRow);
    // Build only this session's ends when expanded, and each constellation on its own toggle.
    details.addEventListener('toggle',()=>{
-    expandedRow.hidden=!details.open;if(!details.open||details.dataset.built)return;details.dataset.built='1';
+    summary.textContent=details.open?'Menos':'Más';expandedRow.hidden=!details.open;if(!details.open||details.dataset.built)return;details.dataset.built='1';
     expandedCell.append(text('p',`Final: ${s.isCurrent?'En curso':time(s.endedAt)}${s.notes?' · Notas: '+s.notes:''}`));
     for(const e of included){const points=total(e.arrows||[]),end=document.createElement('details');end.className='history-end';
      end.append(text('summary',`Andanada ${e.ordinal}${e.inProgress?' · En curso':''} · ${(e.arrows||[]).length} flechas · ${number(points)} puntos · Promedio ${e.arrows?.length?number(points/e.arrows.length):'—'}`));
