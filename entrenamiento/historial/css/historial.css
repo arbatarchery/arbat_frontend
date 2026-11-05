@@ -85,3 +85,5 @@
  #historySessionTable .history-end-arrows{min-width:0;overflow-x:auto}
  #historySessionTable .history-end-arrows table{white-space:normal}
 }
+
+#historySessionTable details.history-session-toggle{min-width:0;white-space:nowrap}
