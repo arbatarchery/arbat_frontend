@@ -12,7 +12,7 @@ function setup() {
     if (key === 'createRadialGradient') return { addColorStop() {} };
   }, set: () => true });
   const sandbox = { window: {}, document: { createElement: () => ({ getContext: () => ctx }) }, Intl };
-  vm.runInNewContext(source.replace('window.ArbatConstellation = { createCanvas };', 'window.ArbatConstellation = { createCanvas, geometry, densityAt, colorAt };'), sandbox);
+  vm.runInNewContext(source.replace(/window\.ArbatConstellation = \{[^}]+\};/, 'window.ArbatConstellation = { createCanvas, createEndCanvas, geometry, densityAt, colorAt };'), sandbox);
   return { ...sandbox.window.ArbatConstellation, calls };
 }
 const arrow = (x, y) => ({ x, y, score: 7, label: '7' });
@@ -29,7 +29,7 @@ for (const [name, arrows, stars] of [
   assert.equal(cores.length, stars);
   api.geometry(arrows).forEach((p, i) => { assert.equal(cores[i][1], p.x); assert.equal(cores[i][2], p.y); });
   const text = api.calls.filter(c => c[0] === 'fillText').map(c => String(c[1]));
-  assert.ok(text.includes('36')); assert.ok(text.includes('6')); assert.ok(text.includes('v1.9'));
+  assert.ok(text.includes('36')); assert.ok(text.includes('6')); assert.ok(text.includes('V2.0'));
   assert.ok(!text.some(s => /\bM\b|miss/i.test(s)));
   const total = stars * 7;
   assert.ok(text.includes(String(total))); assert.ok(text.includes((total / 36).toFixed(2).replace('.', ',')));
@@ -73,4 +73,12 @@ test('gas palette stays blue for isolated arrows, red in between and yellow in d
   assert.ok(blue[2]>blue[0]*2 && blue[2]>blue[1]*2);
   assert.ok(red[0]>red[1]*2 && red[0]>red[2]*2);
   assert.ok(yellow[0]>230 && yellow[1]>200 && yellow[2]<130);
+});
+
+test('end constellation renders only supplied end arrows without session totals',()=>{
+ const api=setup(),arrows=[arrow(55,45),arrow(60,50)];
+ const canvas=api.createEndCanvas(arrows);assert.equal(canvas.width,1080);assert.equal(canvas.height,1080);
+ assert.equal(api.calls.filter(c=>c[0]==='createRadialGradient').length,2);
+ assert.ok(api.calls.some(c=>c[0]==='translate'&&c[2]===-110));
+ assert.ok(!api.calls.some(c=>c[0]==='fillText'&&String(c[1]).includes('sesión')));
 });

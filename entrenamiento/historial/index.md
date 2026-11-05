@@ -5,10 +5,10 @@ description: "Resumen de sesiones, volumen de flechas y evolución del puntaje d
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/recognitions.css?v=1"
-  - "/entrenamiento/historial/css/historial.css?v=14"
+  - "/entrenamiento/historial/css/historial.css?v=15"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
-  - "/entrenamiento/js/constelacion.js?v=2.0"
+  - "/entrenamiento/js/constelacion.js?v=2.1"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
@@ -21,7 +21,8 @@ scripts:
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/history-details.js?v=5"
+  - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
+  - "/entrenamiento/historial/js/history-details.js?v=6"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/historial.js?v=21"
 ---
@@ -67,12 +68,7 @@ scripts:
   </section>
 
   <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
-  <section id="historyLoading" class="history-loading" role="status" aria-live="polite" hidden>
-    <strong>Cargando datos de la nube</strong>
-    <p id="historyLoadingStage">Preparando tu sesión…</p>
-    <progress aria-label="Cargando datos de la nube"></progress>
-    <p id="historyLoadingCounts">Sesiones: 0 · Andanadas: 0 · Flechas: 0 · Arqueros: 0</p>
-  </section>
+
   <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><p id="historySyncDiagnostic" hidden></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta de la nube</button></div>
   <details class="history-card history-expand coach-panel" id="coachPanel" open hidden>
     <summary id="coachTitle">Panel de entrenadores</summary>
@@ -111,11 +107,16 @@ scripts:
 
   <details class="history-card history-expand history-sessions" open><summary id="sessionsTitle">Sesiones del período</summary><p>Las más recientes aparecen primero.</p><div id="sessionList" class="session-list"></div></details>
   <details class="history-card history-expand history-mobile-invite" id="historyDesktopInvite" open><summary>Más detalle en una computadora</summary><p>Para consultar el detalle completo de tus sesiones, andanadas y flechas, abre arbatarchery.com en una computadora e inicia sesión con tu cuenta.</p></details>
+  <section id="historyLoading" class="history-loading" role="status" aria-live="polite" hidden>
+    <strong>Cargando datos de la nube</strong>
+    <p id="historyLoadingStage">Preparando tu sesión…</p>
+    <progress aria-label="Cargando datos de la nube"></progress>
+    <p id="historyLoadingCounts">Sesiones: 0 · Andanadas: 0 · Flechas: 0 · Arqueros: 0</p>
+  </section>
   <details class="history-card history-expand" id="historyDetails" hidden><summary>Detalle completo de sesiones, andanadas y flechas</summary>
     <p>Los filtros siguientes afectan solo a esta tabla y su distribución de puntajes.</p>
     <div class="history-detail-filters"><label>Tipo <select id="detailType"><option value="">Todos</option><option value="training">Entrenamiento</option><option value="competition">Competencia</option></select></label><label>Distancia <select id="detailDistance"><option value="">Todas</option></select></label><label>Diana <select id="detailTarget"><option value="">Todas</option></select></label></div>
     <p id="detailDistribution"></p><div id="historySessionTable" class="coach-table-scroll"></div>
-    <button type="button" class="history-button" id="historyCompare">Comparar con el período anterior</button><p id="historyComparison" role="status"></p>
   </details>
   <details class="history-card history-expand" id="usagePanel" open hidden><summary>Uso y ciudades · Administración</summary><p>Fechas según Bolivia (America/La_Paz). Las aperturas son visitas, no personas únicas ni una medida de motivación. Ciudad aproximada por red; VPN o redes móviles pueden variar.</p><p id="usageMessage" role="status"></p><div id="usageData"></div></details>
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
