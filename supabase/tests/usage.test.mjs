@@ -42,6 +42,22 @@ test('usage RPCs enforce roles, idempotency, promotion, scope and end ownership'
  await db.query('insert into public.training_ends(id,session_id,ordinal) values($1,$2,1)',[id(301),id(300)]);
  assert.equal((await record(id(3),'buddy-3',end)).status,'session_pending');assert.equal((await record(id(2),'buddy-2',end)).status,'accepted');
  assert.equal((await summary()).cities[0].ends,1);
+ const city=(await summary()).cities[0];
+ assert.equal(city.users_total,1);assert.equal(city.users.length,1);
+ assert.equal(city.users[0].subject,'buddy-2');assert.equal(city.users[0].opens,1);assert.equal(city.users[0].ends,1);
+ assert.deepEqual(Object.keys(city.users[0]).sort(),['ends','last_seen','name','opens','subject']);
+ await record(null,null,{...event,event_id:id(104),region:null,country:null});
+ const cityReport=await summary();
+ const anonymousCity=cityReport.cities.find(c=>c.region===null&&c.country===null);
+ assert.equal(anonymousCity.users.length,1);assert.equal(anonymousCity.users[0].name,'Navegador anónimo');
+ assert.equal(anonymousCity.users[0].subject,null);assert.equal(anonymousCity.users[0].opens,1);assert.equal(anonymousCity.users[0].ends,0);
+ assert.equal(cityReport.cities.find(c=>c.region==='La Paz').users[0].ends,1);
+ // Another academy must not leak into an administrator's city detail.
+ const otherSchool=id(900);
+ await db.query("insert into arbat_private.schools(id,name) values($1,'Otra academia')",[otherSchool]);
+ await db.query("update arbat_private.usage_events set school_id=$1 where id=$2",[otherSchool,id(104)]);
+ assert.ok(!(await summary()).cities.some(c=>c.region===null));
+
  await db.query('insert into public.training_ends(id,session_id,ordinal) values($1,$2,2),($3,$2,3)',[id(302),id(300),id(303)]);
  await record(id(2),'buddy-2',{...end,event_id:id(102),end_id:id(302),city:'Cochabamba'});
  await record(id(2),'buddy-2',{...end,event_id:id(103),end_id:id(303),city:'Santa Cruz',occurred_at:new Date(Date.parse(stamp)-3600000).toISOString()});

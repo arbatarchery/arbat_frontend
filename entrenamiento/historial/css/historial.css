@@ -67,3 +67,7 @@
 .training-history #arbatRecognitions>summary{color:#18343b}
 .history-mobile-invite{display:none}
 @media(max-width:859px){#historyDetails{display:none!important}.history-mobile-invite{display:block}}
+
+#usageData details{min-width:220px}#usageData summary{cursor:pointer;color:#ffb17a;padding:.35rem 0}#usageData summary:focus-visible{outline:2px solid #fff;outline-offset:3px}#usageData details table{margin-top:.6rem}#usageData details th,#usageData details td{white-space:nowrap}#usageData details td:first-child{white-space:normal;overflow-wrap:anywhere}
+
+#usageData details button{background:none;border:0;color:#ffb17a;text-decoration:underline;cursor:pointer;font:inherit;text-align:left;padding:4px 0}#usageData details button:focus-visible{outline:2px solid #fff;outline-offset:3px}

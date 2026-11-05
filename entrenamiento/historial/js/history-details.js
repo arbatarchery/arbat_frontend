@@ -72,9 +72,25 @@
   try{const report=await window.ArbatTrainingSync.usageSummary({from:view.range.startKey,to:view.range.endKey,signal:view.signal});if(token!==sequence||!signed())return;
    const data=$('usageData'),n=report.totals;
    $('usageMessage').textContent=`${number(n.opens)} aperturas · ${number(n.accounts)} cuentas · ${number(n.anonymous_browsers)} navegadores anónimos · ${number(n.cities)} ciudades · ${number(n.countries)} países.`;
-   data.append(text('h3','Ciudades observadas'));const cities=table(['Ciudad','Región / país','Aperturas','Andanadas','Última observación']);
-   report.cities.forEach(c=>{const row=document.createElement('tr');[c.city,[c.region,c.country].filter(Boolean).join(' / '),c.opens,c.ends,time(c.last_seen)].forEach(v=>row.append(text('td',v)));cities.body.append(row);});const cityScroll=document.createElement('div');cityScroll.className='coach-table-scroll';cityScroll.append(cities.node);data.append(cityScroll);
-   data.append(text('h3','Frecuencia de consulta'));const visitors=table(['Arquero / navegador','Aperturas','Días de consulta','Navegadores','Ciudades / países','Última apertura','Última ciudad']);
+   data.append(text('h3','Ciudades observadas'));const cities=table(['Ciudad','Región / país','Usuarios','Aperturas','Andanadas','Última observación']);
+   report.cities.forEach(c=>{
+    const row=document.createElement('tr');row.append(text('td',c.city),text('td',[c.region,c.country].filter(Boolean).join(' / ')));
+    const cell=document.createElement('td'),details=document.createElement('details');
+    details.append(text('summary',Array.isArray(c.users)?`Ver usuarios (${number(c.users_total??c.users.length)})`:'Usuarios no disponibles'));
+    if(Array.isArray(c.users)){
+     const users=table(['Usuario / navegador','Aperturas','Andanadas','Última observación']);
+     c.users.forEach(user=>{
+      const tr=document.createElement('tr'),name=document.createElement('td');
+      if(user.subject){const button=text('button',user.name);button.type='button';button.addEventListener('click',()=>window.ArbatTrainingHistory?.selectAthlete(user.subject));name.append(button);}else name.textContent=user.name;
+      tr.append(name);[number(user.opens),number(user.ends),time(user.last_seen)].forEach(value=>tr.append(text('td',value)));users.body.append(tr);
+     });
+     details.append(users.node);
+     if(!c.users.length)details.append(text('p','Sin usuarios registrados para esta ciudad.'));
+     if(c.users_total>c.users.length)details.append(text('p',`Se muestran los ${c.users.length} usuarios o navegadores con observación más reciente. Los totales de la ciudad incluyen todos.`));
+    }else details.append(text('p','El detalle de usuarios por ciudad todavía no está disponible.'));
+    cell.append(details);row.append(cell);[number(c.opens),number(c.ends),time(c.last_seen)].forEach(value=>row.append(text('td',value)));cities.body.append(row);
+   });const cityScroll=document.createElement('div');cityScroll.className='coach-table-scroll';cityScroll.append(cities.node);data.append(cityScroll);
+   data.append(text('h3','Frecuencia de consulta de historial'));const visitors=table(['Arquero / navegador','Aperturas','Días de consulta','Navegadores','Ciudades / países','Última apertura','Última ciudad']);
    report.visitors.forEach(v=>{const row=document.createElement('tr');[v.name,v.opens,v.days,v.browsers,`${v.cities} / ${v.countries}`,time(v.last_open),v.last_city].forEach(value=>row.append(text('td',value)));visitors.body.append(row);});const scroll=document.createElement('div');scroll.className='coach-table-scroll';scroll.append(visitors.node);data.append(scroll);
    data.append(text('p','Se muestran hasta 50 ciudades, 100 cuentas o navegadores y 50 avisos recientes del período. Los totales incluyen todos los eventos del período.'));
    data.append(text('h3','Cambios de ciudad'));if(!report.alerts.length)data.append(text('p','Sin cambios de ciudad detectados en observaciones realizadas al terminar andanadas.'));
