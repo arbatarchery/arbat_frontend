@@ -2,11 +2,115 @@
 // ARBAT: JavaScript autocontenido para pegar en index.ts del editor de Supabase.
 // Generado desde fuentes revisables; no editar a mano. Sin secretos incluidos.
 // Desactivado por defecto: no configurar TRAINING_SYNC_ENABLED=true todavia.
-// functions/training-sync/index.ts: 51925a24880370cade03364c9e2554997bedb1450341b728e3fdacb506cff82c
-// functions/_shared/training-handler.mjs: c8ec98709e16b1979dec73a156b31e13f356da2aa7ed75659ca3aa3c2c596e3c
+// functions/training-sync/index.ts: 929d4a713491b1fac92a7a46d4d57aaa81efd271d00a8da3fae268d6d5837628
+// functions/_shared/training-handler.mjs: fd9665a155834292072a300a1f3d5ef43f391ac36a87f1468fb0ee587117d8d7
 // functions/_shared/buddy-identity.mjs: 6bd873ddb4e20fca1ae33d80327932b8ed7b9fc78819d2db7756072b8e6cce86
 // functions/_shared/buddy-principal.mjs: 609259968e489ab62bb565deb2705b5d8798abf83a9e536ff6cd0caf2879cfba
 // functions/_shared/location-proof.mjs: eca51fc43af0fe9224c42395cb06bb82965c3e0fd7798e463c26f8458c3aa72f
+// functions/_shared/management-status.mjs: 397c75262dc103503d37d1e26ab6832f8492a44d2fbda7c86a38fe3ebaf95c10
+
+// supabase/functions/_shared/management-status.mjs
+var API = "https://api.supabase.com/v1";
+var SERVICES = ["auth", "db", "rest", "storage", "realtime"];
+var PROJECT_STATES = /* @__PURE__ */ new Set(["INACTIVE", "ACTIVE_HEALTHY", "ACTIVE_UNHEALTHY", "COMING_UP", "UNKNOWN", "GOING_DOWN", "INIT_FAILED", "REMOVED", "RESTORING", "UPGRADING", "PAUSING", "RESTORE_FAILED", "RESTARTING", "PAUSE_FAILED", "RESIZING", "PROMOTING"]);
+var nonnegative = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+var capacityLevel = (percent) => !Number.isFinite(percent) || percent < 0 ? "unknown" : percent >= 95 ? "error" : percent >= 80 ? "warning" : "ok";
+function normalizeDisk(data, now = Date.now()) {
+  const m = data?.metrics, at = Date.parse(data?.timestamp);
+  if (!m || ![m.fs_size_bytes, m.fs_used_bytes, m.fs_avail_bytes].every(nonnegative) || m.fs_size_bytes <= 0 || m.fs_used_bytes > m.fs_size_bytes || m.fs_avail_bytes > m.fs_size_bytes || !Number.isFinite(at) || at > now + 3e5) return { status: "unknown", code: "management_invalid_disk" };
+  const stale = now - at > 36e5, percent = m.fs_used_bytes / m.fs_size_bytes * 100;
+  return { status: stale ? "unknown" : capacityLevel(percent), code: stale ? "management_stale_disk" : "ok", checked_at: new Date(at).toISOString(), total_bytes: m.fs_size_bytes, used_bytes: m.fs_used_bytes, available_bytes: m.fs_avail_bytes, percent };
+}
+function createManagementStatus({ token, projectRef, fetchImpl = globalThis.fetch, now = () => Date.now(), timeoutMs = 2e3 } = {}) {
+  const configured = typeof token === "string" && token.length > 0 && /^[a-z]{20}$/.test(projectRef || "");
+  const cache = /* @__PURE__ */ new Map();
+  const unknown = (code) => ({ status: "unknown", code });
+  async function read(path, normalize) {
+    const old = cache.get(path);
+    if (old && old.until > now()) return old.promise;
+    const entry = { until: now() + 3e5, promise: null };
+    entry.promise = (async () => {
+      try {
+        const response = await fetchImpl(API + path, { method: "GET", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, redirect: "error", signal: AbortSignal.timeout(timeoutMs) });
+        if (!response.ok) {
+          response.body?.cancel().catch(() => {
+          });
+          entry.until = now() + 3e4;
+          return { ...unknown(response.status === 401 || response.status === 403 ? "management_access_denied" : response.status === 429 ? "management_rate_limited" : "management_request_failed"), http: response.status };
+        }
+        const reader = response.body?.getReader();
+        if (!reader) throw 0;
+        let size = 0;
+        const chunks = [];
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.length;
+            if (size > 131072) throw 0;
+            chunks.push(value);
+          }
+        } finally {
+          reader.cancel().catch(() => {
+          });
+        }
+        const bytes = new Uint8Array(size);
+        let offset = 0;
+        for (const c of chunks) {
+          bytes.set(c, offset);
+          offset += c.length;
+        }
+        const data = JSON.parse(new TextDecoder().decode(bytes));
+        return normalize(data);
+      } catch {
+        entry.until = now() + 3e4;
+        return unknown("management_unavailable");
+      }
+    })();
+    cache.set(path, entry);
+    return entry.promise;
+  }
+  const base = `/projects/${projectRef}`;
+  async function disk() {
+    if (!configured) return unknown("management_not_configured");
+    const value = await read(base + "/config/disk/util", (data) => normalizeDisk(data, now()));
+    return value.checked_at && now() - Date.parse(value.checked_at) > 36e5 ? { ...value, status: "unknown", code: "management_stale_disk" } : value;
+  }
+  async function capacity() {
+    const d = await disk();
+    return { database_near_limit: ["ok", "warning", "error"].includes(d.status) ? d.percent >= 95 : null, capacity_source: "management_disk" };
+  }
+  async function status() {
+    if (!configured) return { status: "unknown", code: "management_not_configured", disk: unknown("management_not_configured"), services: [] };
+    const [d, allocation, project, health, readonly, autoscale] = await Promise.all([
+      disk(),
+      read(base + "/config/disk", (v) => nonnegative(v?.attributes?.size_gb) && v.attributes.size_gb > 0 ? { status: "ok", size_gb: v.attributes.size_gb } : unknown("management_invalid_disk")),
+      read(base, (v) => ({ status: PROJECT_STATES.has(v?.status) ? v.status : "UNKNOWN", organization: /^[\w-]{1,100}$/.test(v?.organization_slug || "") ? v.organization_slug : null })),
+      read(base + "/health?services=auth,db,rest,storage,realtime&timeout_ms=1500", (v) => ({ ...Array.isArray(v) ? {} : { status: "unknown", code: "management_invalid_health" }, services: SERVICES.map((name) => {
+        const matches = Array.isArray(v) ? v.filter((s2) => s2.name === name) : [], s = matches.length === 1 ? matches[0] : null;
+        return { name, status: s?.status === "ACTIVE_HEALTHY" ? "ok" : s?.status === "COMING_UP" ? "warning" : s?.status === "UNHEALTHY" ? "error" : "unknown" };
+      }) })),
+      read(base + "/readonly", (v) => typeof v?.enabled === "boolean" ? { status: v.enabled ? "error" : "ok", enabled: v.enabled } : unknown("management_invalid_readonly")),
+      read(base + "/config/disk/autoscale", (v) => v && [v.growth_percent, v.min_increment_gb, v.max_size_gb].every((x) => x === null || nonnegative(x)) ? { status: "ok", growth_percent: v.growth_percent, min_increment_gb: v.min_increment_gb, max_size_gb: v.max_size_gb } : unknown("management_invalid_autoscale"))
+    ]);
+    const organization = project.organization ? await read("/organizations/" + encodeURIComponent(project.organization), (v) => ({ plan: ["free", "pro", "team", "enterprise", "platform"].includes(v?.plan) ? v.plan : null })) : {};
+    const problem = [d, allocation, project, health, readonly, autoscale, organization].find((v) => v.code && v.code !== "ok");
+    return {
+      status: problem ? "partial" : "checked",
+      code: problem?.code,
+      checked_at: new Date(now()).toISOString(),
+      plan: organization.plan || null,
+      disk: d,
+      allocation,
+      project: { status: project.status, code: project.code, http: project.http },
+      services: health.services || SERVICES.map((name) => ({ name, status: "unknown" })),
+      readonly,
+      autoscale,
+      monthly_metrics_available: false
+    };
+  }
+  return { status, capacity };
+}
 
 // supabase/functions/_shared/location-proof.mjs
 var USAGE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -180,8 +284,14 @@ async function readJsonLimited(body, limit, timeoutMs = 5e3) {
 function validateOperation(op) {
   if (!op || Array.isArray(op) || typeof op !== "object" || Object.keys(op).some((k) => !["operation_id", "session_id", "entity_id", "kind", "base_revision", "payload"].includes(k)) || ![op.operation_id, op.session_id, op.entity_id].every((x) => typeof x === "string" && UUID.test(x)) || !KINDS.has(op.kind) || !Number.isSafeInteger(op.base_revision) || op.base_revision < 0 || !op.payload || Array.isArray(op.payload) || typeof op.payload !== "object" || new TextEncoder().encode(JSON.stringify(op)).length > 32768) throw new HttpError(400, "invalid_operation");
 }
-function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [], enabled = false, locationSigningSecret, fetchImpl = globalThis.fetch, timeoutMs = 5e3 } = {}) {
+function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [], enabled = false, locationSigningSecret, managementToken, managementProjectRef, fetchImpl = globalThis.fetch, timeoutMs = 5e3 } = {}) {
   const origins = new Set(allowedOrigins);
+  let ref = managementProjectRef;
+  try {
+    ref = ref || new URL(url).hostname.split(".")[0];
+  } catch {
+  }
+  const management = createManagementStatus({ token: managementToken, projectRef: ref, fetchImpl });
   return async (request) => {
     const origin = request.headers.get("origin");
     const cors = origins.has(origin) ? {
@@ -295,7 +405,10 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
       }
       if (body.action === "system.status") {
         const result = await rpc("training_system_status", { p_principal: user.id, p_buddy_subject: identity?.subject ?? null });
-        return reply(result.status === "rate_limited" ? 429 : 200, result);
+        if (result.status === "rate_limited") return reply(429, result);
+        if (!["admin", "superadmin"].includes(result.role)) throw new HttpError(403, "not_owner");
+        const platform = await management.status();
+        return reply(200, { ...result, plan: platform.plan || null, reference_database_bytes: null, management: platform });
       }
       if (body.action === "buddy.session") {
         if (!identity) throw new HttpError(401, "buddy_session_required");
@@ -305,6 +418,7 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
       if (body.action.startsWith("history.")) {
         if (body.action === "history.context") {
           const result2 = await rpc("training_history_context", { p_principal: user.id, p_buddy_subject: identity?.subject ?? null, p_display_name: identity?.displayName ?? null, p_verified_email: identity?.verifiedEmail ?? null });
+          if (result2.status === "accepted") return reply(200, { ...result2, ...await management.capacity() });
           return reply(result2.status === "rate_limited" ? 429 : 200, result2);
         }
         if (body.action === "history.coach") {
@@ -359,6 +473,8 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
 // supabase/functions/training-sync/index.ts
 Deno.serve(createTrainingHandler({
   url: Deno.env.get("SUPABASE_URL"),
+  managementToken: Deno.env.get("TRAINING_MANAGEMENT_TOKEN"),
+  managementProjectRef: Deno.env.get("TRAINING_MANAGEMENT_PROJECT_REF"),
   locationSigningSecret: Deno.env.get("TRAINING_LOCATION_SIGNING_SECRET"),
   publicKey: Deno.env.get("TRAINING_PUBLIC_KEY"),
   serverKey: Deno.env.get("TRAINING_SERVER_KEY"),

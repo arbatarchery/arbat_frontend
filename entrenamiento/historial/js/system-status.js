@@ -3,7 +3,7 @@
  const $=id=>document.getElementById(id),D=window.ArbatDiagnostics;
  if(!D)return;
  const labels={ok:'Correcto',unknown:'Sin comprobar',warning:'Advertencia',error:'Error'};
- const names={database:'Base de datos',server:'Función training-sync',identity:'Identificación · Buddy',history:'Consultas de Historial',city:'Proveedor de ciudad',usage:'Guardado de ciudades',space:'Tamaño actual del proyecto',disk:'Disco y WAL',egress:'Transferencia mensual',functions:'Ejecuciones mensuales'};
+ const names={database:'Base de datos',server:'Función training-sync',identity:'Identificación · Buddy',history:'Consultas de Historial',city:'Proveedor de ciudad',usage:'Guardado de ciudades',space:'Tamaño actual del proyecto',disk:'Disco y WAL',egress:'Transferencia mensual',functions:'Ejecuciones mensuales',management:'API administrativa',project:'Estado del proyecto',platform_db:'Postgres · Supabase',auth:'Autenticación · Supabase',rest:'API de datos · Supabase',storage:'Storage · Supabase',realtime:'Realtime · Supabase',readonly:'Modo de escritura',autoscale:'Ampliación automática del disco'};
  let owner=null,allowed=false,generation=0,controller=null,checking=false,lastCheck=0,report=null,probe={},copyReport='';
  const account=()=>{const user=window.ArbatUser?.get?.()||window.Buddy?.auth?.getUser?.();return user?String(user.id??user._id):null;};
  const node=(tag,value)=>{const n=document.createElement(tag);if(value!=null)n.textContent=String(value);return n;};
@@ -19,13 +19,24 @@
  }
  function rows(){
   const recent=D.snapshot({serverOnly:true}).latest,values={...recent,...probe};
-  const b=report?.database_bytes,limit=report?.reference_database_bytes;
-  if(Number.isFinite(b)&&b>=0&&Number.isFinite(limit)&&limit>0){const pct=b/limit*100;values.space={status:pct>=95?'error':pct>=80?'warning':'ok',at:Date.parse(report.checked_at),note:`${(b/1000000).toFixed(1)} MB / ${(limit/1000000).toFixed(0)} MB de referencia Free · ${pct.toFixed(1)} %. Tamaño actual de este proyecto; no es el promedio facturado ni el total de la organización.`};}
-  return Object.fromEntries(Object.keys(names).map(key=>[key,effective(values[key])||{status:'unknown',note:['egress','functions'].includes(key)?(key==='functions'?'Consumo oficial no conectado. Referencia Free: 500.000 ejecuciones por ciclo.':'Consumo oficial no conectado. Referencia Free: 5 GB sin caché y 5 GB con caché por ciclo; cuotas independientes.'):key==='disk'?'El tamaño de datos no incluye el disco total ni WAL. Consultar Supabase.':'Todavía no hay una comprobación confirmada.'}]));
+  const m=report?.management,at=Date.parse(m?.checked_at||report?.checked_at);
+  const formatBytes=v=>`${(v/1000000000).toFixed(3)} GB`;
+  if(Number.isFinite(report?.database_bytes))values.space={status:'unknown',at,note:`Datos de Postgres: ${(report.database_bytes/1000000).toFixed(1)} MB. La cuota facturada del plan no está disponible en esta API; no se presupone Free.`};
+  if(m){
+   values.management={status:m.status==='checked'?'ok':m.status==='partial'?'warning':'unknown',at,code:m.code,note:m.code==='management_not_configured'?'Falta configurar el acceso de lectura en el servidor.':'Consultas de solo lectura a Supabase.'};
+   const disk=m.disk;
+   if(disk){values.disk={status:disk.status,at:Date.parse(disk.checked_at)||at,code:disk.code,http:disk.http,note:Number.isFinite(disk.percent)?`${formatBytes(disk.used_bytes)} / ${formatBytes(disk.total_bytes)} · ${disk.percent.toFixed(1)} %. Incluye datos, WAL y archivos del sistema.`:'Ocupación del disco sin confirmar.'};if(disk.code?.startsWith('management_')&&disk.code!=='management_stale_disk')values.management.status='warning';}
+   const lifecycle={ACTIVE_HEALTHY:['ok','Activo'],ACTIVE_UNHEALTHY:['error','Activo con fallas'],INACTIVE:['error','Inactivo'],COMING_UP:['warning','Iniciando'],GOING_DOWN:['warning','Apagándose'],INIT_FAILED:['error','Falló el inicio'],REMOVED:['error','Retirado'],RESTORING:['warning','Restaurando'],UPGRADING:['warning','Actualizando'],PAUSING:['warning','Pausando'],RESTORE_FAILED:['error','Falló la restauración'],RESTARTING:['warning','Reiniciando'],PAUSE_FAILED:['error','Falló la pausa'],RESIZING:['warning','Ampliando'],PROMOTING:['warning','Promoviendo']};
+   const state=lifecycle[m.project?.status]||['unknown','Estado del proyecto sin confirmar'];values.project={status:state[0],at,note:state[1],code:m.project?.code,http:m.project?.http};
+   for(const service of m.services||[]){const key=service.name==='db'?'platform_db':service.name;if(['platform_db','auth','rest','storage','realtime'].includes(key)&&['ok','warning','error','unknown'].includes(service.status))values[key]={status:service.status,at,note:service.status==='ok'?'Servicio saludable según Supabase.':service.status==='warning'?'Servicio iniciando.':service.status==='error'?'Supabase informa un servicio no saludable.':'Estado sin confirmar.'};}
+   if(m.readonly)values.readonly={status:m.readonly.status,at,code:m.readonly.code,http:m.readonly.http,note:m.readonly.enabled===true?'Solo lectura: las escrituras están restringidas.':m.readonly.enabled===false?'Modo de solo lectura desactivado.':'Estado sin confirmar.'};
+   if(m.autoscale)values.autoscale={status:m.autoscale.status,at,code:m.autoscale.code,http:m.autoscale.http,note:m.autoscale.growth_percent>0?`Crecimiento automático: ${m.autoscale.growth_percent} %${m.autoscale.max_size_gb>0?` · Máximo configurado: ${m.autoscale.max_size_gb} GB`:''}.`:m.autoscale.status==='ok'?'La API no informa una ampliación automática configurada.':'Configuración sin confirmar.'};
+  }
+  return Object.fromEntries(Object.keys(names).map(key=>[key,effective(values[key])||{status:'unknown',note:['egress','functions'].includes(key)?'El consumo facturado del ciclo no se publica en los endpoints documentados de Management API. Consultar Uso en Supabase.':'Todavía no hay una comprobación confirmada.'}]));
  }
  function render(){
   if(!allowed||owner!==account()||!$('systemStatus'))return;
-  const all=rows(),groups=[['Comunicaciones',['server','identity','history','city']],['Guardado de datos',['database','usage']],['Capacidad · Plan Free',['space','disk','egress','functions']]];
+  const all=rows(),groups=[['Comunicaciones',['server','identity','history','city']],['Guardado de datos',['database','usage']],['Infraestructura · Supabase',['management','project','platform_db','auth','rest','storage','realtime','readonly']],['Capacidad · '+({free:'Free',pro:'Pro',team:'Team',enterprise:'Enterprise',platform:'Platform'}[report?.management?.plan]||'Plan sin confirmar'),['space','disk','autoscale','egress','functions']]];
   const root=$('systemStatusAreas');root.replaceChildren();const overall=D.worst(Object.values(all).map(r=>r.status));
   $('systemStatusIndicator').replaceChildren(indicator(overall));
   $('systemStatusChecked').textContent=checking?'Comprobando servicios…':`Última comprobación del panel: ${time(lastCheck)}. Estado según las últimas respuestas comprobadas de los servicios.`;

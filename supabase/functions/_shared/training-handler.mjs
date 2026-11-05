@@ -1,3 +1,4 @@
+import {createManagementStatus} from './management-status.mjs';
 import {verifyLocation,USAGE_UUID} from './location-proof.mjs';
 import { resolveBuddyPrincipal } from './buddy-principal.mjs';
 import { verifyBuddyAccessToken, BuddyIdentityError } from './buddy-identity.mjs';
@@ -44,8 +45,10 @@ function validateOperation(op) {
 
 // Only this server handler derives p_principal and p_buddy_subject. Never accept
 // them (or an owner_id) as request parameters. SQL RPCs are service_role-only.
-export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins=[], enabled=false, locationSigningSecret, fetchImpl=globalThis.fetch, timeoutMs=5000}={}) {
+export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins=[], enabled=false, locationSigningSecret, managementToken, managementProjectRef, fetchImpl=globalThis.fetch, timeoutMs=5000}={}) {
   const origins=new Set(allowedOrigins);
+  let ref=managementProjectRef;try{ref=ref||new URL(url).hostname.split('.')[0];}catch{}
+  const management=createManagementStatus({token:managementToken,projectRef:ref,fetchImpl});
   return async request => {
     const origin=request.headers.get('origin');
     const cors=origins.has(origin)?{'Access-Control-Allow-Origin':origin,'Vary':'Origin',
@@ -128,7 +131,7 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
       }
       if(usageEvent){const result=await rpc('training_record_usage',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_event:usageEvent,p_rate_key:location.rate_key});return reply(result.status==='rate_limited'?429:200,result);}
       if(body.action==='usage.summary'){const result=await rpc('training_usage_summary',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_from:body.from,p_to:body.to},1048576);return reply(result.status==='rate_limited'?429:200,result);}
-      if(body.action==='system.status'){const result=await rpc('training_system_status',{p_principal:user.id,p_buddy_subject:identity?.subject??null});return reply(result.status==='rate_limited'?429:200,result);}
+      if(body.action==='system.status'){const result=await rpc('training_system_status',{p_principal:user.id,p_buddy_subject:identity?.subject??null});if(result.status==='rate_limited')return reply(429,result);if(!['admin','superadmin'].includes(result.role))throw new HttpError(403,'not_owner');const platform=await management.status();return reply(200,{...result,plan:platform.plan||null,reference_database_bytes:null,management:platform});}
       if(body.action==='buddy.session'){
         if(!identity)throw new HttpError(401,'buddy_session_required');
         return reply(200,{status:'accepted',principal_id:user.id,subject:identity.subject});
@@ -137,6 +140,7 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
       if(body.action.startsWith('history.')){
         if(body.action==='history.context'){
           const result=await rpc('training_history_context',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_display_name:identity?.displayName??null,p_verified_email:identity?.verifiedEmail??null});
+          if(result.status==='accepted')return reply(200,{...result,...await management.capacity()});
           return reply(result.status==='rate_limited'?429:200,result);
         }
         if(body.action==='history.coach'){
