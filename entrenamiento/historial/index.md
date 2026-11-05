@@ -5,7 +5,7 @@ description: "Resumen de sesiones, volumen de flechas y evolución del puntaje d
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/recognitions.css?v=1"
-  - "/entrenamiento/historial/css/historial.css?v=11"
+  - "/entrenamiento/historial/css/historial.css?v=12"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/constelacion.js?v=2.0"
@@ -21,8 +21,9 @@ scripts:
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
-  - "/entrenamiento/historial/js/history-details.js?v=2"
-  - "/entrenamiento/historial/js/historial.js?v=19"
+  - "/entrenamiento/historial/js/history-details.js?v=3"
+  - "/entrenamiento/historial/js/history-roster.js?v=1"
+  - "/entrenamiento/historial/js/historial.js?v=20"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -81,7 +82,7 @@ scripts:
       <article class="coach-total"><span>Flechas registradas por los arqueros en el período</span><strong id="coachArrows">—</strong><small>Según la fecha de cada flecha. Tu entrenamiento aparece en el resumen personal.</small></article>
       <h3>Arqueros supervisados</h3>
       <p>Las últimas sesiones y sus totales diarios se muestran aunque estén fuera del período seleccionado.</p>
-      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col">Arquero</th><th scope="col">Inicio de la última sesión</th><th scope="col">Flechas de ese día</th><th scope="col">Promedio del día</th></tr></thead><tbody id="coachRoster"></tbody></table></div>
+      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col" aria-sort="none"><button type="button" data-coach-sort="name" data-label="Arquero">Arquero ↕</button></th><th scope="col" aria-sort="descending"><button type="button" data-coach-sort="date" data-label="Inicio de la última sesión">Inicio de la última sesión ↓</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="arrows" data-label="Flechas de ese día">Flechas de ese día ↕</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="average" data-label="Promedio del día">Promedio del día ↕</button></th></tr></thead><tbody id="coachRoster"></tbody></table></div>
     </div>
   </details>
 
