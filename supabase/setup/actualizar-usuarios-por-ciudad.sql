@@ -23,11 +23,12 @@ begin
   max(owner::text)::uuid owner,count(*) filter(where kind='history_open') opens,
   count(*) filter(where kind='end_location') ends,max(observed_at) last_seen
   from period where city is not null group by city,region,country,4),
- named_city_visitors as (select c.city,c.region,c.country,c.opens,c.ends,c.last_seen,
+ named_city_visitors as (select c.city,c.region,c.country,c.opens,c.ends,c.last_seen,identity.subject,
   coalesce(nullif(p.display_name,''),case when c.owner is null then 'Navegador anónimo' else 'Arquero' end) name,
   row_number() over(partition by c.city,c.region,c.country order by c.last_seen desc,c.visitor) position,
   count(*) over(partition by c.city,c.region,c.country) users_total
-  from city_visitors c left join public.training_profiles p on p.id=c.owner),
+  from city_visitors c left join public.training_profiles p on p.id=c.owner
+  left join lateral(select e.subject from arbat_private.external_identities e where e.user_id=c.owner and e.issuer='https://api.statetty.com' order by e.subject limit 1) identity on true),
  visitors as (select case when owner is not null then 'account:'||owner::text else 'browser:'||browser_id::text end visitor,
   max(owner::text)::uuid owner,count(*) opens,count(distinct activity_date) days,count(distinct browser_id) browsers,
   count(distinct city_key) filter(where city is not null) cities,count(distinct country) countries,max(occurred_at) last_open,
@@ -48,7 +49,7 @@ begin
  'totals',(select jsonb_build_object('opens',count(*) filter(where kind='history_open'),'accounts',count(distinct owner) filter(where kind='history_open'),
  'anonymous_browsers',count(distinct browser_id) filter(where kind='history_open' and owner is null),'cities',count(distinct city_key) filter(where city is not null),'countries',count(distinct country)) from period),
  'cities',coalesce((select jsonb_agg(to_jsonb(c)||jsonb_build_object(
-  'users',coalesce((select jsonb_agg(jsonb_build_object('name',v.name,'opens',v.opens,'ends',v.ends,'last_seen',v.last_seen) order by v.position)
+  'users',coalesce((select jsonb_agg(jsonb_build_object('name',v.name,'subject',v.subject,'opens',v.opens,'ends',v.ends,'last_seen',v.last_seen) order by v.position)
    from named_city_visitors v where v.city=c.city and v.region is not distinct from c.region and v.country is not distinct from c.country and v.position<=100),'[]'::jsonb),
   'users_total',coalesce((select max(v.users_total) from named_city_visitors v where v.city=c.city and v.region is not distinct from c.region and v.country is not distinct from c.country),0))) from cities c),'[]'::jsonb),
  'visitors',coalesce((select jsonb_agg((to_jsonb(v)||jsonb_build_object('name',coalesce(nullif(p.display_name,''),case when v.owner is null then 'Navegador anónimo' else 'Arquero' end)))-'owner'-'visitor') from visitors v left join public.training_profiles p on p.id=v.owner),'[]'::jsonb),

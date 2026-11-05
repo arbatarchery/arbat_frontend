@@ -44,13 +44,13 @@ test('usage RPCs enforce roles, idempotency, promotion, scope and end ownership'
  assert.equal((await summary()).cities[0].ends,1);
  const city=(await summary()).cities[0];
  assert.equal(city.users_total,1);assert.equal(city.users.length,1);
- assert.equal(city.users[0].opens,1);assert.equal(city.users[0].ends,1);
- assert.deepEqual(Object.keys(city.users[0]).sort(),['ends','last_seen','name','opens']);
+ assert.equal(city.users[0].subject,'buddy-2');assert.equal(city.users[0].opens,1);assert.equal(city.users[0].ends,1);
+ assert.deepEqual(Object.keys(city.users[0]).sort(),['ends','last_seen','name','opens','subject']);
  await record(null,null,{...event,event_id:id(104),region:null,country:null});
  const cityReport=await summary();
  const anonymousCity=cityReport.cities.find(c=>c.region===null&&c.country===null);
  assert.equal(anonymousCity.users.length,1);assert.equal(anonymousCity.users[0].name,'Navegador anónimo');
- assert.equal(anonymousCity.users[0].opens,1);assert.equal(anonymousCity.users[0].ends,0);
+ assert.equal(anonymousCity.users[0].subject,null);assert.equal(anonymousCity.users[0].opens,1);assert.equal(anonymousCity.users[0].ends,0);
  assert.equal(cityReport.cities.find(c=>c.region==='La Paz').users[0].ends,1);
  // Another academy must not leak into an administrator's city detail.
  const otherSchool=id(900);

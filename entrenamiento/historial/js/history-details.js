@@ -79,7 +79,11 @@
     details.append(text('summary',Array.isArray(c.users)?`Ver usuarios (${number(c.users_total??c.users.length)})`:'Usuarios no disponibles'));
     if(Array.isArray(c.users)){
      const users=table(['Usuario / navegador','Aperturas','Andanadas','Última observación']);
-     c.users.forEach(user=>{const tr=document.createElement('tr');[user.name,number(user.opens),number(user.ends),time(user.last_seen)].forEach(value=>tr.append(text('td',value)));users.body.append(tr);});
+     c.users.forEach(user=>{
+      const tr=document.createElement('tr'),name=document.createElement('td');
+      if(user.subject){const button=text('button',user.name);button.type='button';button.addEventListener('click',()=>window.ArbatTrainingHistory?.selectAthlete(user.subject));name.append(button);}else name.textContent=user.name;
+      tr.append(name);[number(user.opens),number(user.ends),time(user.last_seen)].forEach(value=>tr.append(text('td',value)));users.body.append(tr);
+     });
      details.append(users.node);
      if(!c.users.length)details.append(text('p','Sin usuarios registrados para esta ciudad.'));
      if(c.users_total>c.users.length)details.append(text('p',`Se muestran los ${c.users.length} usuarios o navegadores con observación más reciente. Los totales de la ciudad incluyen todos.`));

@@ -613,6 +613,14 @@
     $('studentActivityLegend').hidden=true;$('athletePicker').hidden=true;
   }
 
+  function selectAthlete(subject) {
+    if(!rawCurrentUser())return;
+    const athlete=state.coaching?.athletes.find(a=>a.subject===subject);
+    if(!athlete?.subject)return;
+    state.selectedUser=normalizeUser({id:athlete.subject,name:athlete.name});
+    $('athleteSearch').value=athlete.name;closeUserResults();render();
+  }
+
   function renderCoaching(overview) {
     $('coachPanel').hidden=false;$('coachData').hidden=false;$('coachMessage').textContent='';
     $('coachScope').textContent=overview.role==='superadmin'?'Todos los arqueros, de todas las academias.':overview.role==='admin'?'Arqueros de tu academia.':'Arqueros que tienes autorizados para supervisar.';
@@ -626,7 +634,7 @@
     });
     window.ArbatHistoryRoster.sortAthletes(overview.athletes,state.coachSort).forEach(athlete=>{
       const row=document.createElement('tr'),name=document.createElement('td');
-      if(athlete.subject){const button=document.createElement('button');button.type='button';button.textContent=athlete.name;button.addEventListener('click',()=>{state.selectedUser=normalizeUser({id:athlete.subject,name:athlete.name});$('athleteSearch').value=athlete.name;render();});name.append(button);}
+      if(athlete.subject){const button=document.createElement('button');button.type='button';button.textContent=athlete.name;button.addEventListener('click',()=>selectAthlete(athlete.subject));name.append(button);}
       else name.textContent=athlete.name;
       row.append(name);
       let timestamp='Sin sesiones';
@@ -738,6 +746,6 @@
 
   state.selectedUser = currentUser();state.ownUserId=state.selectedUser.id;render();
   if (window.Buddy && window.Buddy.readyPromise) window.Buddy.readyPromise.then(initializeDirectory).catch(() => {}); else initializeDirectory();
-  window.ArbatTrainingHistory = { render, allSessions: localSessions, closePopover };
+  window.ArbatTrainingHistory = { render, selectAthlete, allSessions: localSessions, closePopover };
 })();
 
