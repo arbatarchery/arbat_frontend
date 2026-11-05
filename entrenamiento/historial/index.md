@@ -8,7 +8,7 @@ estilos:
   - "/entrenamiento/historial/css/historial.css?v=17"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
-  - "/entrenamiento/js/sync-diagnostics.js?v=1"
+  - "/entrenamiento/js/sync-diagnostics.js?v=2"
   - "/entrenamiento/js/constelacion.js?v=2.1"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
@@ -25,7 +25,7 @@ scripts:
   - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
   - "/entrenamiento/historial/js/history-details.js?v=7"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
-  - "/entrenamiento/historial/js/system-status.js?v=1"
+  - "/entrenamiento/historial/js/system-status.js?v=2"
   - "/entrenamiento/historial/js/historial.js?v=22"
 ---
 
@@ -124,12 +124,11 @@ scripts:
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
   <details class="history-card history-expand system-status" id="systemStatus" hidden>
     <summary>Estado del sistema <span id="systemStatusIndicator"><span class="system-indicator system-unknown">Sin comprobar</span></span></summary>
-    <p>Rojo: error · Amarillo: advertencia · Gris: sin comprobar · Verde: correcto. Cada encabezado refleja el estado más grave de sus componentes. El diagnóstico no representa todos los dispositivos.</p>
+    <p>Rojo: error · Amarillo: advertencia · Gris: sin comprobar · Verde: correcto. Cada encabezado refleja el estado más grave de sus componentes. Se muestran comprobaciones de servicios y servidores.</p>
     <p id="systemStatusChecked" role="status"></p>
     <div class="system-status-actions"><button type="button" class="history-button" id="systemStatusCheck">Comprobar ahora</button><button type="button" class="history-button" id="systemStatusCopy">Copiar diagnóstico</button><a class="history-button" href="https://supabase.com/dashboard/project/qbtdwlcpqcsolubhhkfa" target="_blank" rel="noopener noreferrer">Abrir Supabase</a></div>
     <p id="systemStatusMessage" role="status"></p>
     <div id="systemStatusAreas"></div>
-    <h3>Errores recientes de esta pestaña</h3><div id="systemStatusErrors"></div>
   </details>
   <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
 </div>
