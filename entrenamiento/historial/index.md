@@ -5,7 +5,7 @@ description: "Resumen de sesiones, volumen de flechas y evolución del puntaje d
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/recognitions.css?v=1"
-  - "/entrenamiento/historial/css/historial.css?v=17"
+  - "/entrenamiento/historial/css/historial.css?v=18"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/sync-diagnostics.js?v=2"
@@ -25,8 +25,9 @@ scripts:
   - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
   - "/entrenamiento/historial/js/history-details.js?v=7"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
+  - "/entrenamiento/historial/js/capacity-notice.js?v=1"
   - "/entrenamiento/historial/js/system-status.js?v=2"
-  - "/entrenamiento/historial/js/historial.js?v=22"
+  - "/entrenamiento/historial/js/historial.js?v=23"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -122,6 +123,7 @@ scripts:
   </details>
   <details class="history-card history-expand" id="usagePanel" open hidden><summary>Uso y ciudades · Administración</summary><p>Fechas según Bolivia (America/La_Paz). Las aperturas son visitas, no personas únicas ni una medida de motivación. Ciudad aproximada por red; VPN o redes móviles pueden variar.</p><p id="usageMessage" role="status"></p><div id="usageData"></div></details>
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
+  <section class="history-card capacity-notice" id="capacityNotice" role="status" aria-live="polite" hidden><strong><span class="system-indicator system-error">Cerca del límite</span></strong><p>La base de datos está por llenarse. Por favor, comunícalo al encargado.</p></section>
   <details class="history-card history-expand system-status" id="systemStatus" hidden>
     <summary>Estado del sistema <span id="systemStatusIndicator"><span class="system-indicator system-unknown">Sin comprobar</span></span></summary>
     <p>Rojo: error · Amarillo: advertencia · Gris: sin comprobar · Verde: correcto. Cada encabezado refleja el estado más grave de sus componentes. Se muestran comprobaciones de servicios y servidores.</p>
