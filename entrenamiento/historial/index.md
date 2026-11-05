@@ -5,26 +5,28 @@ description: "Resumen de sesiones, volumen de flechas y evolución del puntaje d
 breadcrumb_hidden: true
 estilos:
   - "/entrenamiento/css/recognitions.css?v=1"
-  - "/entrenamiento/historial/css/historial.css?v=16"
+  - "/entrenamiento/historial/css/historial.css?v=17"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
+  - "/entrenamiento/js/sync-diagnostics.js?v=1"
   - "/entrenamiento/js/constelacion.js?v=2.1"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=5"
-  - "/entrenamiento/js/sync-history.js?v=6"
+  - "/entrenamiento/js/sync-history.js?v=7"
   - "/entrenamiento/js/sync-captcha.js?v=3"
-  - "/entrenamiento/js/sync-usage.js?v=2"
-  - "/entrenamiento/js/sync-bootstrap.js?v=8"
+  - "/entrenamiento/js/sync-usage.js?v=3"
+  - "/entrenamiento/js/sync-bootstrap.js?v=9"
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
   - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
   - "/entrenamiento/historial/js/history-details.js?v=7"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=21"
+  - "/entrenamiento/historial/js/system-status.js?v=1"
+  - "/entrenamiento/historial/js/historial.js?v=22"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -120,6 +122,15 @@ scripts:
   </details>
   <details class="history-card history-expand" id="usagePanel" open hidden><summary>Uso y ciudades · Administración</summary><p>Fechas según Bolivia (America/La_Paz). Las aperturas son visitas, no personas únicas ni una medida de motivación. Ciudad aproximada por red; VPN o redes móviles pueden variar.</p><p id="usageMessage" role="status"></p><div id="usageData"></div></details>
   <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
+  <details class="history-card history-expand system-status" id="systemStatus" hidden>
+    <summary>Estado del sistema <span id="systemStatusIndicator"><span class="system-indicator system-unknown">Sin comprobar</span></span></summary>
+    <p>Rojo: error · Amarillo: advertencia · Gris: sin comprobar · Verde: correcto. Cada encabezado refleja el estado más grave de sus componentes. El diagnóstico no representa todos los dispositivos.</p>
+    <p id="systemStatusChecked" role="status"></p>
+    <div class="system-status-actions"><button type="button" class="history-button" id="systemStatusCheck">Comprobar ahora</button><button type="button" class="history-button" id="systemStatusCopy">Copiar diagnóstico</button><a class="history-button" href="https://supabase.com/dashboard/project/qbtdwlcpqcsolubhhkfa" target="_blank" rel="noopener noreferrer">Abrir Supabase</a></div>
+    <p id="systemStatusMessage" role="status"></p>
+    <div id="systemStatusAreas"></div>
+    <h3>Errores recientes de esta pestaña</h3><div id="systemStatusErrors"></div>
+  </details>
   <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
 </div>
 

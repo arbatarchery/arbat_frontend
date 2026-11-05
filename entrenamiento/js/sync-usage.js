@@ -54,7 +54,8 @@
       if(!row.proof||this.now()-Date.parse(row.observed_at)>6*86400000){
        const city=new URL(this.cityUrl);for(const [k,v] of Object.entries({event_id:row.event_id,browser_id:row.browser_id,event_kind:row.kind}))city.searchParams.set(k,v);
        const response=await this.fetchImpl(city.href,{credentials:'omit',referrerPolicy:'no-referrer',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(4000)});
-       const data=await this.json(response);if(!response.ok||typeof data.proof!=='string'||data.proof.length>4096)throw new Error('city_unavailable');
+       const data=await this.json(response);if(!response.ok||typeof data.proof!=='string'||data.proof.length>4096)throw new Error(data.error||'city_unavailable');
+       globalThis.ArbatDiagnostics?.record({service:'city',action:'city.lookup',code:'ok',http:response.status});
        row={...row,proof:data.proof,observed_at:data.observed_at};await this.store.meta(entry.key,row);
       }
       // This checks only existing credentials; it never opens a CAPTCHA.
@@ -69,10 +70,11 @@
       const event={event_id:row.event_id,browser_id:row.browser_id,kind:row.kind,occurred_at:row.occurred_at,proof:row.proof,...(row.session_id?{session_id:row.session_id,end_id:row.end_id}:{})};
       const response=await this.fetchImpl(this.url.replace(/\/$/,'')+'/functions/v1/training-sync',{method:'POST',headers,body:JSON.stringify({schema_version:1,action:'usage.record',event}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000)});
       const result=await this.json(response);
+      globalThis.ArbatDiagnostics?.record({service:'usage',action:'usage.record',code:response.ok&&result.status==='accepted'?'ok':result.error||result.status,http:response.status});
       if(response.ok&&result.status==='accepted'&&result.event_id===row.event_id){
        await this.store.meta(entry.key,{...row,ack:true,nextAttemptAt:0,accountKey:identity?.accountKey||row.accountKey||null});
       }else if(result.error==='location_proof_expired'){await this.store.meta(entry.key,{...row,proof:null});}
-     }catch{/* Independent queue: analytics never changes the training status. */}
+     }catch(error){globalThis.ArbatDiagnostics?.record({service:row.proof?'usage':'city',action:row.proof?'usage.record':'city.lookup',code:error?.message});/* Independent queue: analytics never changes the training status. */}
     }
     // Keep current opening for anonymous-to-account promotion, and compact receipts.
     for(const entry of rows)if(entry.value?.ack&&entry.key!==this.opening&&/^usage-(open|end|event):/.test(entry.key)){
