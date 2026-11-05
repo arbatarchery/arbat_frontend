@@ -20,3 +20,17 @@ test('one opening, login promotion, end receipt deduplication and offline retent
  await usage.observe(stale);await usage.flush();assert.equal(sent.length,3);
  assert.equal((await store.meta(opening)).accountKey,'account-a');
 });
+test('browser fetch retains the Window receiver for city and event requests',async t=>{
+ const store=new Store({name:'usage-fetch-receiver-'+crypto.randomUUID(),indexedDB});
+ const originalFetch=globalThis.fetch;let calls=0;
+ globalThis.fetch=async function(url,init){
+  assert.equal(this,globalThis,'native browser fetch requires its global receiver');calls++;
+  if(String(url).startsWith('https://city.test/'))return Response.json({proof:'signed-test',observed_at:new Date().toISOString()});
+  const body=JSON.parse(init.body);return Response.json({status:'accepted',event_id:body.event.event_id});
+ };
+ t.after(()=>{globalThis.fetch=originalFetch;});
+ const usage=new Usage({store,url:'https://db.test',publicKey:'public',cityUrl:'https://city.test/',identityProvider:async()=>null});
+ usage.schedule=()=>{};t.after(()=>usage.stop());
+ const opening=await usage.openHistory();await usage.flush();
+ assert.equal(calls,2);assert.equal((await store.meta(opening)).ack,true);
+});
