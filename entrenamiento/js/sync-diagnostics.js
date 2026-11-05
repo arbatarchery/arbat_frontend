@@ -18,6 +18,6 @@
   if(status!=='ok'){errors.unshift(row);errors=errors.slice(0,20);}
   if(root.dispatchEvent&&root.CustomEvent)root.dispatchEvent(new root.CustomEvent('arbat:diagnostic'));
  }
- function snapshot(){const grouped={};for(const row of Object.values(latest)){const old=grouped[row.service];if(!old||levels[row.status]>=levels[old.status])grouped[row.service]=row;}return {latest:grouped,errors:[...errors]};}
+ function snapshot({serverOnly=false}={}){const grouped={};for(const row of Object.values(latest)){if(serverOnly&&!Number.isInteger(row.http))continue;const old=grouped[row.service];if(!old||levels[row.status]>=levels[old.status])grouped[row.service]=row;}return {latest:grouped,errors:[...errors]};}
  return {record,worst,safeCode:value=>codes.has(value)?value:'unexpected_error',snapshot,clear:()=>{latest={};errors=[];}};
 });

@@ -8,7 +8,7 @@ estilos:
   - "/entrenamiento/css/entrenamiento.css?v=8"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
-  - "/entrenamiento/js/sync-diagnostics.js?v=1"
+  - "/entrenamiento/js/sync-diagnostics.js?v=2"
   - "/entrenamiento/js/constelacion.js?v=2.0"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"

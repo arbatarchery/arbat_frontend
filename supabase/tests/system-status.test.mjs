@@ -38,8 +38,9 @@ test('another history action cannot clear an unresolved failure',()=>{
 test('panel starts collapsed, inherits failures and clears data after account switch',async()=>{
  const {default:vm}=await import('node:vm');
  class Element{constructor(){this.children=[];this.events={};this.hidden=true;this.open=false;}append(...items){this.children.push(...items);}replaceChildren(...items){this.children=items;}addEventListener(name,fn){this.events[name]=fn;}}
- const ids={},events={},ready=[];let user={id:'admin-a'},requests=0;
- const context={console,Date,URL,AbortSignal,AbortController,crypto,Response,setInterval(){},navigator:{onLine:true,clipboard:{writeText:async()=>{}}},CustomEvent:class{constructor(type){this.type=type;}},document:{getElementById:id=>ids[id]??=new Element(),createElement:()=>new Element(),addEventListener:(name,fn)=>ready.push(fn)},addEventListener:(name,fn)=>{(events[name]??=[]).push(fn);},dispatchEvent:e=>{for(const fn of events[e.type]||[])fn(e);},ArbatUser:{get:()=>user},ArbatTrainingSyncConfig:{cityUrl:'https://city.test/'},fetch:async()=>Response.json({proof:'test-proof'}),ArbatTrainingSync:{systemStatus:async()=>{requests++;return {status:'accepted',role:'admin',checked_at:new Date().toISOString(),database_bytes:450000000,reference_database_bytes:500000000};},store:{readAll:async()=>[]},lastStatus:{state:'synced'}}};
+ const ids={},events={},ready=[];let user={id:'admin-a'},requests=0,clock=Date.now();
+ class ClockDate extends Date{static now(){return clock;}}
+ const context={console,Date:ClockDate,URL,AbortSignal,AbortController,crypto,Response,setInterval(){},navigator:{onLine:true,clipboard:{writeText:async()=>{}}},CustomEvent:class{constructor(type){this.type=type;}},document:{getElementById:id=>ids[id]??=new Element(),createElement:()=>new Element(),addEventListener:(name,fn)=>ready.push(fn)},addEventListener:(name,fn)=>{(events[name]??=[]).push(fn);},dispatchEvent:e=>{for(const fn of events[e.type]||[])fn(e);},ArbatUser:{get:()=>user},ArbatTrainingSyncConfig:{cityUrl:'https://city.test/'},fetch:async()=>Response.json({proof:'test-proof'}),ArbatTrainingSync:{systemStatus:async()=>{requests++;return {status:'accepted',role:'admin',checked_at:new Date().toISOString(),database_bytes:100000000,reference_database_bytes:500000000};},store:{readAll:async()=>[]},lastStatus:{state:'synced'}}};
  context.window=context;vm.createContext(context);
  vm.runInContext(await readFile(new URL('../../entrenamiento/js/sync-diagnostics.js',import.meta.url),'utf8'),context);
  vm.runInContext(await readFile(new URL('../../entrenamiento/historial/js/system-status.js',import.meta.url),'utf8'),context);
@@ -48,10 +49,27 @@ test('panel starts collapsed, inherits failures and clears data after account sw
  for(const fn of events['arbat:history-role'])fn({detail:{role:'admin'}});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(requests,1);assert.equal(ids.systemStatus.hidden,false);assert.equal(ids.systemStatus.open,false);
- assert.equal(ids.systemStatusIndicator.children[0].textContent,'Advertencia');
+ assert.equal(ids.systemStatusIndicator.children[0].textContent,'Sin comprobar');
+ const textOf=e=>[e.textContent||'',...(e.children||[]).map(textOf)].join(' ');
+ context.ArbatDiagnostics.record({service:'sync',action:'sync',code:'pending'});
+ context.ArbatDiagnostics.record({service:'history',action:'history.detail',code:'local_storage_unavailable'});
+ assert.equal(ids.systemStatusIndicator.children[0].textContent,'Sin comprobar');
+ assert.ok(!textOf(ids.systemStatusAreas).includes('Cola local'));assert.ok(!textOf(ids.systemStatusAreas).includes('local_storage_unavailable'));
+ clock+=6*60000;context.dispatchEvent({type:'arbat:diagnostic'});
+ assert.ok(!textOf(ids.systemStatusAreas).includes('Advertencia'));
+ clock+=55*60000;context.dispatchEvent({type:'arbat:diagnostic'});
+ assert.equal(ids.systemStatusIndicator.children[0].textContent,'Advertencia');assert.ok(textOf(ids.systemStatusAreas).includes('más de 1 hora'));
+
  context.ArbatDiagnostics.record({service:'city',action:'city.lookup',code:'usage_disabled',http:503});
  assert.equal(ids.systemStatusIndicator.children[0].textContent,'Error');
  for(const fn of events['arbat:history-loaded'])fn({detail:{role:null}});assert.equal(ids.systemStatus.hidden,false);
  user={id:'admin-b'};for(const fn of events['buddy:auth-state-changed'])fn();
  assert.equal(ids.systemStatus.hidden,true);assert.equal(ids.systemStatusAreas.children.length,0);assert.equal(context.ArbatDiagnostics.snapshot().errors.length,0);
+});
+
+test('server-only snapshots exclude local failures and preserve server HTTP errors',()=>{
+ D.clear();D.record({service:'sync',action:'sync',code:'local_storage_unavailable'});D.record({service:'history',action:'history.list',code:'history_network_error'});
+ assert.deepEqual(D.snapshot({serverOnly:true}).latest,{});
+ D.record({service:'history',action:'history.detail',code:'operation_rejected',http:422});
+ assert.equal(D.snapshot({serverOnly:true}).latest.history.http,422);D.clear();
 });
