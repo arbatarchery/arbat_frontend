@@ -655,6 +655,7 @@
     try{
       const context=await sync.historyContext({signal});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
       state.verifiedRole=['user','coach','admin','superadmin'].includes(context.role)?context.role:'unknown';
+      window.dispatchEvent(new CustomEvent('arbat:history-role',{detail:{role:state.verifiedRole}}));
       updateHistoryLoading(sequence,'Conexión con la nube confirmada · Consultando arqueros…');
       if(!context.can_coach){state.selectedUser=currentUser();return;}
       const overview=await sync.coachOverview({from:range.startKey,to:range.endKey,signal,onProgress:counts=>updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando arqueros…',counts)});signal.throwIfAborted();if(sequence!==state.renderSequence)return;

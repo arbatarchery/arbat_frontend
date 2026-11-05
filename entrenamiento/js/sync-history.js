@@ -5,6 +5,7 @@
  class Reader{
   constructor({enabled=false,url,publicKey,identityProvider,transport,fetchImpl=globalThis.fetch,concurrency=3}={}){Object.assign(this,{enabled,url,publicKey,identityProvider,transport,fetchImpl});this.fetchImpl=(...args)=>fetchImpl(...args);this.parts=new Map();this.claimed=new Set();this.claiming=new Map();this.concurrency=Math.max(1,Math.min(3,Number.isInteger(concurrency)?concurrency:3));}
   async request(body,identity,signal){
+   const diagnosticStart=Date.now();
    try{
    signal?.throwIfAborted();const current=await this.identityProvider();signal?.throwIfAborted();if(!current||scope(current)!==scope(identity))throw error('auth_changed');
    if(current.accountKey){
@@ -19,21 +20,26 @@
    const headers={'Content-Type':'application/json',apikey:this.publicKey,Authorization:`Bearer ${current.supabaseToken||this.publicKey}`};if(current.buddyToken)headers['x-buddy-access-token']=current.buddyToken;
    const signals=[AbortSignal.timeout(10000)];if(signal)signals.push(signal);
    const response=await this.fetchImpl(`${this.url.replace(/\/$/,'')}/functions/v1/training-sync`,{method:'POST',headers,body:JSON.stringify({schema_version:1,...body}),signal:AbortSignal.any(signals),cache:'no-store',redirect:'error'});
-   if(!response.ok)throw Object.assign(error(response.status===429?'rate_limited':response.status===401?'auth_required':'history_unavailable'),{httpStatus:response.status});
+   if(!response.ok){let code=null;try{const data=await response.json();code=data.error;}catch{}throw Object.assign(error(response.status===429?'rate_limited':response.status===401?'auth_required':'history_unavailable'),{httpStatus:response.status,serverCode:code});}
    const reader=response.body.getReader();let length=0;const chunks=[];
    try{while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>1048576)throw error('history_response_limit');chunks.push(value);}}finally{reader.cancel().catch(()=>{});}
    const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
-   signal?.throwIfAborted();const result=JSON.parse(new TextDecoder().decode(bytes));if(!['accepted','changed','gone'].includes(result.status))throw error('history_unavailable');return result;
+   signal?.throwIfAborted();const result=JSON.parse(new TextDecoder().decode(bytes));if(!['accepted','changed','gone'].includes(result.status))throw error('history_unavailable');globalThis.ArbatDiagnostics?.record({service:body.action==='system.status'?'database':body.action==='history.context'?'identity':body.action==='usage.summary'?'usage':'history',action:body.action,code:'ok',http:response.status,ms:Date.now()-diagnosticStart});return result;
    }catch(cause){
     if(signal?.aborted)throw cause;
     const failure=typeof cause?.code==='string'?cause:error(cause?.name==='TimeoutError'?'history_timeout':cause?.name==='SyntaxError'?'history_invalid_json':cause?.name==='TypeError'?'history_network_error':'history_unavailable');
     failure.historyAction=body.action;if(['ends','arrows'].includes(body.collection))failure.historyCollection=body.collection;
+    globalThis.ArbatDiagnostics?.record({service:body.action==='system.status'?'database':body.action==='history.context'?'identity':body.action==='usage.summary'?'usage':'history',action:body.action,code:failure.serverCode||failure.code,http:failure.httpStatus});
     throw failure;
    }
   }
   async context({signal}={}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity)throw error('auth_required');
    return this.request({action:'history.context'},identity,signal);
+  }
+  async systemStatus({signal}={}){
+   if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');
+   return this.request({action:'system.status'},identity,signal);
   }
   async usageSummary({from,to,signal}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');

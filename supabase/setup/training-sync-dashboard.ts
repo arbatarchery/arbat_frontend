@@ -3,7 +3,7 @@
 // Generado desde fuentes revisables; no editar a mano. Sin secretos incluidos.
 // Desactivado por defecto: no configurar TRAINING_SYNC_ENABLED=true todavia.
 // functions/training-sync/index.ts: 51925a24880370cade03364c9e2554997bedb1450341b728e3fdacb506cff82c
-// functions/_shared/training-handler.mjs: dc3cf971868fec16ef5583c3cd98c9169378752195c0f602725b288552c14589
+// functions/_shared/training-handler.mjs: c8ec98709e16b1979dec73a156b31e13f356da2aa7ed75659ca3aa3c2c596e3c
 // functions/_shared/buddy-identity.mjs: 6bd873ddb4e20fca1ae33d80327932b8ed7b9fc78819d2db7756072b8e6cce86
 // functions/_shared/buddy-principal.mjs: 609259968e489ab62bb565deb2705b5d8798abf83a9e536ff6cd0caf2879cfba
 // functions/_shared/location-proof.mjs: eca51fc43af0fe9224c42395cb06bb82965c3e0fd7798e463c26f8458c3aa72f
@@ -200,7 +200,7 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
       const bearer = request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9._~-]+)$/i)?.[1];
       if (!bearer || bearer.length > 8192) throw new HttpError(401, "supabase_session_required");
       const body = await readJsonLimited(request.body, 131072, timeoutMs);
-      if (!body || Array.isArray(body) || body.schema_version !== 1 || !["sync", "claim", "history.list", "history.detail", "history.context", "history.coach", "buddy.session", "usage.record", "usage.summary"].includes(body.action)) throw new HttpError(400, "invalid_request");
+      if (!body || Array.isArray(body) || body.schema_version !== 1 || !["sync", "claim", "history.list", "history.detail", "history.context", "history.coach", "buddy.session", "usage.record", "usage.summary", "system.status"].includes(body.action)) throw new HttpError(400, "invalid_request");
       const keys = body.action === "usage.record" ? ["schema_version", "action", "event"] : body.action === "usage.summary" ? ["schema_version", "action", "from", "to"] : body.action === "history.coach" ? ["schema_version", "action", "from", "to", "cursor", "scope_hash"] : body.action === "sync" ? ["schema_version", "action", "operations"] : body.action === "history.list" ? ["schema_version", "action", "from", "to", "cursor", "target_subject"] : body.action === "history.detail" ? ["schema_version", "action", "session_id", "revision", "collection", "cursor"] : ["schema_version", "action"];
       if (Object.keys(body).some((k) => !keys.includes(k))) throw new HttpError(400, "unknown_request_fields");
       if (body.action === "sync") {
@@ -291,6 +291,10 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
       }
       if (body.action === "usage.summary") {
         const result = await rpc("training_usage_summary", { p_principal: user.id, p_buddy_subject: identity?.subject ?? null, p_from: body.from, p_to: body.to }, 1048576);
+        return reply(result.status === "rate_limited" ? 429 : 200, result);
+      }
+      if (body.action === "system.status") {
+        const result = await rpc("training_system_status", { p_principal: user.id, p_buddy_subject: identity?.subject ?? null });
         return reply(result.status === "rate_limited" ? 429 : 200, result);
       }
       if (body.action === "buddy.session") {

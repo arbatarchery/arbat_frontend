@@ -46,6 +46,7 @@
   historyEnabled:config.enabled===true&&config.historyEnabled===true,
   async savedAccount(legacyId){try{const row=await store.recoverCurrent();return row?.snapshot?.id===legacyId?row.accountKey:null;}catch{return null;}},
   async historyContext(options){if(!history)throw new Error('history_disabled');return history.context(options);},
+  async systemStatus(options){if(!history)throw new Error('history_disabled');return history.systemStatus(options);},
   async usageSummary(options){if(!history)throw new Error('history_disabled');return history.usageSummary(options);},
   async coachOverview(options){if(!history)throw new Error('history_disabled');return history.coachOverview(options);},
   async remoteHistory(options){if(!history)throw new Error('history_disabled');return history.get(options);},
