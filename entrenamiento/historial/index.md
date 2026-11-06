@@ -26,7 +26,7 @@ scripts:
   - "/entrenamiento/historial/js/history-details.js?v=7"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/capacity-notice.js?v=1"
-  - "/entrenamiento/historial/js/system-status.js?v=3"
+  - "/entrenamiento/historial/js/system-status.js?v=4"
   - "/entrenamiento/historial/js/historial.js?v=23"
 ---
 
@@ -126,7 +126,7 @@ scripts:
   <section class="history-card capacity-notice" id="capacityNotice" role="status" aria-live="polite" hidden><strong><span class="system-indicator system-error">Cerca del límite</span></strong><p>La base de datos está por llenarse. Por favor, comunícalo al encargado.</p></section>
   <details class="history-card history-expand system-status" id="systemStatus" hidden>
     <summary>Estado del sistema <span id="systemStatusIndicator"><span class="system-indicator system-unknown">Sin comprobar</span></span></summary>
-    <p>Rojo: error · Amarillo: advertencia · Gris: sin comprobar · Verde: correcto. Cada encabezado refleja el estado más grave de sus componentes. Se muestran comprobaciones de servicios y servidores.</p>
+    <p>Rojo: error · Amarillo: advertencia · Verde: correcto. Cada encabezado refleja el estado más grave de sus componentes. Solo se muestran indicadores con datos confirmados; los datos no disponibles se omiten.</p>
     <p id="systemStatusChecked" role="status"></p>
     <div class="system-status-actions"><button type="button" class="history-button" id="systemStatusCheck">Comprobar ahora</button><button type="button" class="history-button" id="systemStatusCopy">Copiar diagnóstico</button><a class="history-button" href="https://supabase.com/dashboard/project/qbtdwlcpqcsolubhhkfa" target="_blank" rel="noopener noreferrer">Abrir Supabase</a></div>
     <p id="systemStatusMessage" role="status"></p>
