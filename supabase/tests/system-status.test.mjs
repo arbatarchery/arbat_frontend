@@ -40,7 +40,7 @@ test('panel starts collapsed, inherits failures and clears data after account sw
  class Element{constructor(){this.children=[];this.events={};this.hidden=true;this.open=false;}append(...items){this.children.push(...items);}replaceChildren(...items){this.children=items;}addEventListener(name,fn){this.events[name]=fn;}}
  const ids={},events={},ready=[];let user={id:'admin-a'},requests=0,clock=Date.now();
  class ClockDate extends Date{static now(){return clock;}}
- const context={console,Date:ClockDate,URL,AbortSignal,AbortController,crypto,Response,setInterval(){},navigator:{onLine:true,clipboard:{writeText:async()=>{}}},CustomEvent:class{constructor(type){this.type=type;}},document:{getElementById:id=>ids[id]??=new Element(),createElement:()=>new Element(),addEventListener:(name,fn)=>ready.push(fn)},addEventListener:(name,fn)=>{(events[name]??=[]).push(fn);},dispatchEvent:e=>{for(const fn of events[e.type]||[])fn(e);},ArbatUser:{get:()=>user},ArbatTrainingSyncConfig:{cityUrl:'https://city.test/'},fetch:async()=>Response.json({proof:'test-proof'}),ArbatTrainingSync:{systemStatus:async()=>{requests++;return {status:'accepted',role:'admin',checked_at:new Date().toISOString(),database_bytes:100000000,reference_database_bytes:500000000};},store:{readAll:async()=>[]},lastStatus:{state:'synced'}}};
+ const context={console,Date:ClockDate,URL,AbortSignal,AbortController,crypto,Response,setInterval(){},navigator:{onLine:true,clipboard:{writeText:async()=>{}}},CustomEvent:class{constructor(type){this.type=type;}},document:{getElementById:id=>ids[id]??=new Element(),createElement:()=>new Element(),addEventListener:(name,fn)=>ready.push(fn)},addEventListener:(name,fn)=>{(events[name]??=[]).push(fn);},dispatchEvent:e=>{for(const fn of events[e.type]||[])fn(e);},ArbatUser:{get:()=>user},ArbatTrainingSyncConfig:{cityUrl:'https://city.test/'},fetch:async()=>Response.json({proof:'test-proof'}),ArbatTrainingSync:{systemStatus:async()=>{requests++;return {status:'accepted',role:'admin',checked_at:new Date().toISOString(),database_bytes:100000000,management:{status:'partial',code:'management_invalid_autoscale',checked_at:new Date().toISOString(),project:{status:'ACTIVE_HEALTHY'},disk:{status:'unknown'},services:[],autoscale:{status:'unknown'}}};},store:{readAll:async()=>[]},lastStatus:{state:'synced'}}};
  context.window=context;vm.createContext(context);
  vm.runInContext(await readFile(new URL('../../entrenamiento/js/sync-diagnostics.js',import.meta.url),'utf8'),context);
  vm.runInContext(await readFile(new URL('../../entrenamiento/historial/js/system-status.js',import.meta.url),'utf8'),context);
@@ -49,11 +49,17 @@ test('panel starts collapsed, inherits failures and clears data after account sw
  for(const fn of events['arbat:history-role'])fn({detail:{role:'admin'}});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(requests,1);assert.equal(ids.systemStatus.hidden,false);assert.equal(ids.systemStatus.open,false);
- assert.equal(ids.systemStatusIndicator.children[0].textContent,'Sin comprobar');
+ assert.equal(ids.systemStatusIndicator.children[0].textContent,'Correcto');
  const textOf=e=>[e.textContent||'',...(e.children||[]).map(textOf)].join(' ');
  context.ArbatDiagnostics.record({service:'sync',action:'sync',code:'pending'});
  context.ArbatDiagnostics.record({service:'history',action:'history.detail',code:'local_storage_unavailable'});
- assert.equal(ids.systemStatusIndicator.children[0].textContent,'Sin comprobar');
+ assert.equal(ids.systemStatusIndicator.children[0].textContent,'Correcto');
+ assert.ok(!textOf(ids.systemStatusAreas).includes('Sin comprobar'));
+ assert.ok(!textOf(ids.systemStatusAreas).includes('Transferencia mensual'));
+ assert.ok(!textOf(ids.systemStatusAreas).includes('Ejecuciones mensuales'));
+ assert.ok(!textOf(ids.systemStatusAreas).includes('Disco y WAL'));
+ assert.ok(textOf(ids.systemStatusAreas).includes('API administrativa Correcto'));
+ assert.ok(!textOf(ids.systemStatusAreas).includes('management_invalid_autoscale'));
  assert.ok(!textOf(ids.systemStatusAreas).includes('Cola local'));assert.ok(!textOf(ids.systemStatusAreas).includes('local_storage_unavailable'));
  clock+=6*60000;context.dispatchEvent({type:'arbat:diagnostic'});
  assert.ok(!textOf(ids.systemStatusAreas).includes('Advertencia'));
