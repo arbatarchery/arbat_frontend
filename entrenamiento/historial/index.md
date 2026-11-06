@@ -8,14 +8,14 @@ estilos:
   - "/entrenamiento/historial/css/historial.css?v=18"
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
-  - "/entrenamiento/js/sync-diagnostics.js?v=2"
+  - "/entrenamiento/js/sync-diagnostics.js?v=3"
   - "/entrenamiento/js/constelacion.js?v=2.1"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=5"
-  - "/entrenamiento/js/sync-history.js?v=7"
+  - "/entrenamiento/js/sync-history.js?v=8"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-usage.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=9"
@@ -26,7 +26,7 @@ scripts:
   - "/entrenamiento/historial/js/history-details.js?v=7"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/capacity-notice.js?v=1"
-  - "/entrenamiento/historial/js/system-status.js?v=4"
+  - "/entrenamiento/historial/js/system-status.js?v=5"
   - "/entrenamiento/historial/js/historial.js?v=23"
 ---
 

@@ -18,7 +18,7 @@
    }
    signal?.throwIfAborted();
    const headers={'Content-Type':'application/json',apikey:this.publicKey,Authorization:`Bearer ${current.supabaseToken||this.publicKey}`};if(current.buddyToken)headers['x-buddy-access-token']=current.buddyToken;
-   const signals=[AbortSignal.timeout(10000)];if(signal)signals.push(signal);
+   const signals=[AbortSignal.timeout(body.action==='system.status'?20000:10000)];if(signal)signals.push(signal);
    const response=await this.fetchImpl(`${this.url.replace(/\/$/,'')}/functions/v1/training-sync`,{method:'POST',headers,body:JSON.stringify({schema_version:1,...body}),signal:AbortSignal.any(signals),cache:'no-store',redirect:'error'});
    if(!response.ok){let code=null;try{const data=await response.json();code=data.error;}catch{}throw Object.assign(error(response.status===429?'rate_limited':response.status===401?'auth_required':'history_unavailable'),{httpStatus:response.status,serverCode:code});}
    const reader=response.body.getReader();let length=0;const chunks=[];

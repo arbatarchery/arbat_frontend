@@ -13,7 +13,7 @@
   const row={service:input.service,action:actions.has(input.action)?input.action:'sync',code,status,at:Date.now()};
   if(Number.isInteger(input.http)&&input.http>=100&&input.http<=599)row.http=input.http;
   if(Number.isFinite(input.ms)&&input.ms>=0)row.ms=Math.round(input.ms);
-  if(status==='ok'&&row.ms>3000)row.status='warning';
+  if(status==='ok'&&row.ms>(row.action==='system.status'?10000:3000))row.status='warning';
   latest[row.service+':'+row.action]=row;
   if(status!=='ok'){errors.unshift(row);errors=errors.slice(0,20);}
   if(root.dispatchEvent&&root.CustomEvent)root.dispatchEvent(new root.CustomEvent('arbat:diagnostic'));
