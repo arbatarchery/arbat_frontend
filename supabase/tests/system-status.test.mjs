@@ -20,7 +20,7 @@ test('system status SQL is restricted to verified administrators and contains no
  await db.query("insert into arbat_private.role_assignments(user_id,role,school_id) values($1,'admin','a8ba7000-0000-4000-8000-000000000001'),($2,'superadmin',null)",[id(1),id(3)]);
  const status=n=>db.query('select public.training_system_status($1,$2) result',[id(n),'buddy-'+n]).then(r=>r.rows[0].result);
  await assert.rejects(status(2),e=>e.code==='42501');await assert.rejects(db.query('select public.training_system_status($1,null)',[id(1)]),e=>e.code==='28000');
- for(const n of [1,3]){const r=await status(n);assert.equal(r.status,'accepted');assert.ok(r.database_bytes>0);assert.equal(r.reference_database_bytes,500000000);assert.equal(r.monthly_metrics_available,false);assert.ok(!JSON.stringify(r).includes('buddy-'));}
+ for(const n of [1,3]){const r=await status(n);assert.equal(r.status,'accepted');assert.ok(r.database_bytes>0);assert.equal(r.reference_database_bytes,null);assert.equal(r.monthly_metrics_available,false);assert.ok(!JSON.stringify(r).includes('buddy-'));}
  await db.exec('begin;set local role authenticated');await assert.rejects(db.query('select public.training_system_status($1,$2)',[id(1),'buddy-1']),e=>e.code==='42501');await db.exec('rollback');
 });
 test('system.status does not accept client supplied roles or identity',async()=>{
