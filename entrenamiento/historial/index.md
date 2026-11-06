@@ -73,17 +73,7 @@ scripts:
   <p class="data-scope" id="dataScope">Datos guardados en este dispositivo.</p>
 
   <div id="historySyncNotice" role="status" hidden><p id="historySyncMessage"></p><p id="historySyncDiagnostic" hidden></p><button id="historySyncRetry" type="button" class="history-button">Reintentar consulta de la nube</button></div>
-  <details class="history-card history-expand coach-panel" id="coachPanel" open hidden>
-    <summary id="coachTitle">Panel de entrenadores</summary>
-    <p id="coachScope"></p>
-    <p id="coachMessage" role="status"></p>
-    <div id="coachData" hidden>
-      <article class="coach-total"><span>Flechas registradas por los arqueros en el período</span><strong id="coachArrows">—</strong><small>Según la fecha de cada flecha. Tu entrenamiento aparece en el resumen personal.</small></article>
-      <h3>Arqueros supervisados</h3>
-      <p>Las últimas sesiones y sus totales diarios se muestran aunque estén fuera del período seleccionado.</p>
-      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col" aria-sort="none"><button type="button" data-coach-sort="name" data-label="Arquero">Arquero ↕</button></th><th scope="col" aria-sort="descending"><button type="button" data-coach-sort="date" data-label="Inicio de la última sesión">Inicio de la última sesión ↓</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="arrows" data-label="Flechas de ese día">Flechas de ese día ↕</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="average" data-label="Promedio del día">Promedio del día ↕</button></th></tr></thead><tbody id="coachRoster"></tbody></table></div>
-    </div>
-  </details>
+
 
   <details class="history-expand history-summary" id="historySummary" open><summary>Resumen del período</summary>
   <section class="kpi-grid" aria-label="Resumen del período">
@@ -121,8 +111,19 @@ scripts:
     <div class="history-detail-filters"><label>Tipo <select id="detailType"><option value="">Todos</option><option value="training">Entrenamiento</option><option value="competition">Competencia</option></select></label><label>Distancia <select id="detailDistance"><option value="">Todas</option></select></label><label>Diana <select id="detailTarget"><option value="">Todas</option></select></label></div>
     <p id="detailDistribution"></p><div id="historySessionTable" class="coach-table-scroll"></div>
   </details>
+  <details class="history-card history-expand coach-panel" id="coachPanel" hidden>
+    <summary id="coachTitle">Panel de entrenadores</summary>
+    <p id="coachScope"></p>
+    <p id="coachMessage" role="status"></p>
+    <div id="coachData" hidden>
+      <article class="coach-total"><span>Flechas registradas por los arqueros en el período</span><strong id="coachArrows">—</strong><small>Según la fecha de cada flecha. Tu entrenamiento aparece en el resumen personal.</small></article>
+      <h3>Arqueros supervisados</h3>
+      <p>Las últimas sesiones y sus totales diarios se muestran aunque estén fuera del período seleccionado.</p>
+      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col" aria-sort="none"><button type="button" data-coach-sort="name" data-label="Arquero">Arquero ↕</button></th><th scope="col" aria-sort="descending"><button type="button" data-coach-sort="date" data-label="Inicio de la última sesión">Inicio de la última sesión ↓</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="arrows" data-label="Flechas de ese día">Flechas de ese día ↕</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="average" data-label="Promedio del día">Promedio del día ↕</button></th></tr></thead><tbody id="coachRoster"></tbody></table></div>
+    </div>
+  </details>
   <details class="history-card history-expand" id="usagePanel" open hidden><summary>Uso y ciudades · Administración</summary><p>Fechas según Bolivia (America/La_Paz). Las aperturas son visitas, no personas únicas ni una medida de motivación. Ciudad aproximada por red; VPN o redes móviles pueden variar.</p><p id="usageMessage" role="status"></p><div id="usageData"></div></details>
-  <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
+
   <section class="history-card capacity-notice" id="capacityNotice" role="status" aria-live="polite" hidden><strong><span class="system-indicator system-error">Cerca del límite</span></strong><p>La base de datos está por llenarse. Por favor, comunícalo al encargado.</p></section>
   <details class="history-card history-expand system-status" id="systemStatus" hidden>
     <summary>Estado del sistema <span id="systemStatusIndicator"><span class="system-indicator system-unknown">Sin comprobar</span></span></summary>
@@ -132,6 +133,7 @@ scripts:
     <p id="systemStatusMessage" role="status"></p>
     <div id="systemStatusAreas"></div>
   </details>
+  <div class="history-actions"><a class="history-button history-button--primary" href="/entrenamiento/">Registrar entrenamiento</a><a class="history-button" href="/">Volver al inicio</a></div>
   <div class="history-popover" id="historyPopover" role="dialog" aria-live="polite" hidden></div>
 </div>
 
