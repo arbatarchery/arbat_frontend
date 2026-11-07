@@ -4,6 +4,7 @@
 
   const HISTORY_KEY = 'arbat-training-history';
   const CURRENT_KEY = 'arbat-training-current';
+  const ALL_ATHLETES={id:'arbat:all',name:'Todos',identifier:'',anonymous:false,allAthletes:true};
   const ANONYMOUS_DEVICE_KEY = 'arbat-anonymous-device-id';
   let historyError=null,historyFailure=null,historyController=null;
   const $ = id => document.getElementById(id);
@@ -39,7 +40,7 @@
     return parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(NaN);
   }
 
-  function today() { const date = new Date(); date.setHours(0, 0, 0, 0); return date; }
+  function today() { const date=new Date();date.setHours(0,0,0,0);return date; }
   function addDays(date, days) { const result = new Date(date); result.setDate(result.getDate() + days); return result; }
   function formatDate(date, options) { return new Intl.DateTimeFormat('es-BO', options).format(date); }
   function formatNumber(value, decimals = 2) { return Number(value).toFixed(decimals).replace('.', ','); }
@@ -176,7 +177,7 @@
     const codes=['history_unavailable','history_auth_timeout','history_offline','history_timeout','history_network_error','history_invalid_json','history_disabled','auth_required','auth_changed','buddy_auth_required','buddy_bridge_unavailable','captcha_required','rate_limited','history_changed','history_response_limit','history_cache_limit','invalid_history_page','invalid_history_metadata','invalid_history_detail','invalid_history_parent','invalid_history_cursor'];
     const code=codes.includes(error?.code)?error.code:error?.name==='TimeoutError'?'history_timeout':error?.name==='TypeError'?'history_processing_error':'history_unavailable';
     const parts=[code];
-    if(['history.list','history.detail'].includes(error?.historyAction))parts.push(error.historyAction);
+    if(['history.list','history.all','history.detail'].includes(error?.historyAction))parts.push(error.historyAction);
     if(['ends','arrows'].includes(error?.historyCollection))parts.push(error.historyCollection);
     if(Number.isInteger(error?.httpStatus)&&error.httpStatus>=400&&error.httpStatus<=599)parts.push('HTTP '+error.httpStatus);
     return parts.join(' · ');
@@ -184,6 +185,14 @@
 
   async function loadSessions(range, user, signal,sequence) {
     const sync=window.ArbatTrainingSync;
+    if(user.allAthletes){
+      if(!state.coaching||!['coach','admin','superadmin'].includes(state.verifiedRole))throw Object.assign(new Error('auth_required'),{code:'auth_required'});
+      try{
+        const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,allUsers:true,signal,onProgress:(_count,counts)=>updateHistoryLoading(sequence,'Cargando el historial de todos los arqueros…',counts)});
+        const sessions=remote.sessions.map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
+        Object.defineProperty(sessions,'historySource',{value:'remote'});return sessions;
+      }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);return [];}
+    }
     if(sync?.historyEnabled&&window.ArbatSyncHistory){
       let local=await localSessionsWithBackup(user);const own=currentUser();historyError=null;historyFailure=null;
       if(!rawCurrentUser()&&user.id!==own.id)return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
@@ -220,7 +229,7 @@
   }
 
   function renderIdentity(user, source = 'local') {
-    $('athleteName').textContent = user.name;
+    $('athleteName').textContent = user.allAthletes?'Todos los arqueros':user.name;
     $('athleteAvatar').textContent = initials(user.name);
     if($('athleteRole'))$('athleteRole').textContent=user.id===currentUser().id&&rawCurrentUser()&&window.ArbatTrainingSync?.historyEnabled?({superadmin:'SuperAdmin',admin:'Administrador',coach:'Entrenador',user:'Arquero',unknown:'Acceso sin confirmar'}[state.verifiedRole]||'Verificando acceso…'):'Arquero';
     $('dataScope').textContent = source === 'remote'
@@ -331,7 +340,6 @@
     });
     const sessions = day.sessions.slice().sort((first, second) => String(first.startedAt || '').localeCompare(String(second.startedAt || '')));
     content.append(title, summary);
-    if(day.studentArrows){const note=document.createElement('p');note.textContent=`Alumnos: ${day.studentArrows} flechas registradas este día.`;content.append(note);}
     sessions.forEach((session, index) => content.append(sessionConstellation(session, index, sessions.length)));
     return content;
   }
@@ -350,11 +358,11 @@
     for (let index = 0; index < firstDay; index += 1) { const blank = document.createElement('span'); blank.className = 'activity-day is-empty'; blank.setAttribute('aria-hidden', 'true'); root.append(blank); }
     days.forEach((day, dayIndex) => {
       const calendarDate = parseLocalDate(day.date);
-      const active=day.arrows||day.studentArrows;
+      const active=day.arrows;
       const cell = document.createElement(active ? 'button' : 'span');
       const level = !day.arrows ? 0 : Math.max(1, Math.ceil(day.arrows / Math.max(1, max) * 3));
-      const names={competition:'Competencia',training:'Entrenamiento propio',students:'Actividad de alumnos'};
-      const label = `${formatDate(calendarDate, { day: 'numeric', month: 'short', year: 'numeric' })}: ${day.arrows} flechas del arquero consultado${day.studentArrows?', '+day.studentArrows+' flechas de alumnos':''}. ${(day.kinds||[]).map(kind=>names[kind]).join(', ')}`;
+      const names={competition:'Competencia',training:$('trainingActivityLegend').textContent};
+      const label = `${formatDate(calendarDate, { day: 'numeric', month: 'short', year: 'numeric' })}: ${day.arrows} flechas ${state.selectedUser?.allAthletes?'de todos los arqueros':'del arquero consultado'}. ${(day.kinds||[]).map(kind=>names[kind]).join(', ')}`;
       cell.className = 'activity-day'+(day.primaryKind?' activity-day--'+day.primaryKind:''); cell.dataset.level = String(level); cell.title = label;
       const number = document.createElement('span'); number.className = 'activity-day-number'; number.textContent = String(calendarDate.getDate()); cell.append(number);
       if (dayIndex === 0 || calendarDate.getDate() === 1) {
@@ -551,7 +559,7 @@
       const total = session.arrows.reduce((sum, arrow) => sum + valueOf(arrow), 0), average = session.arrows.length ? total / session.arrows.length : 0;
       const row = document.createElement('article'); row.className = 'session-row';
       const text = document.createElement('div'), title = document.createElement('h3'), meta = document.createElement('p');
-      title.textContent = formatDate(parseLocalDate(session.date), { weekday: 'short', day: 'numeric', month: 'long' });
+      title.textContent = (state.selectedUser?.allAthletes?`${session.owner?.name||'Arquero'} · `:'')+formatDate(parseLocalDate(session.date), { weekday: 'short', day: 'numeric', month: 'long' });
       const ends = (session.completed || []).length + (session.current && session.current.length ? 1 : 0);
       meta.textContent = `${session.arrows.length} flechas · ${ends} andanada${ends === 1 ? '' : 's'}${session.isCurrent ? ' · En curso' : ''}`; text.append(title, meta);
       const score = document.createElement('div'); score.className = 'session-score';
@@ -584,12 +592,13 @@
 
   function renderUserResults(filter = '') {
     const query = String(filter).trim().toLocaleLowerCase('es');
-    const matches = state.users.filter(user => `${user.name} ${user.identifier}`.toLocaleLowerCase('es').includes(query));
+    const filteredUsers = state.users.filter(user => `${user.name} ${user.identifier}`.toLocaleLowerCase('es').includes(query));
+    const matches=state.privileged&&state.coaching?[ALL_ATHLETES,...filteredUsers]:filteredUsers;
     const root = $('athleteResults'); root.replaceChildren();
     matches.forEach(user => {
       const option = document.createElement('button'); option.type = 'button'; option.role = 'option'; option.className = 'athlete-option';
       option.setAttribute('aria-selected', String(state.selectedUser && state.selectedUser.id === user.id));
-      const name = document.createElement('strong'), detail = document.createElement('small'); name.textContent = user.name; detail.textContent = user.anonymous ? `Anónimo · ${user.identifier.slice(-12)}` : user.identifier;
+      const name = document.createElement('strong'), detail = document.createElement('small'); name.textContent = user.name; detail.textContent = user.allAthletes?'Todos los arqueros autorizados':user.anonymous ? `Anónimo · ${user.identifier.slice(-12)}` : user.identifier;
       option.append(name, detail); option.addEventListener('click', () => { state.selectedUser = user; $('athleteSearch').value = user.name; closeUserResults(); render(); }); root.append(option);
     });
     if (!matches.length) { const empty = document.createElement('p'); empty.className = 'athlete-results-empty'; empty.textContent = 'No se encontraron usuarios.'; root.append(empty); }
@@ -610,7 +619,7 @@
   function clearCoaching() {
     state.coaching=null;state.privileged=false;state.users=[];
     $('coachPanel').hidden=true;$('coachData').hidden=true;$('coachRoster').replaceChildren();
-    $('studentActivityLegend').hidden=true;$('athletePicker').hidden=true;
+    $('athletePicker').hidden=true;
   }
 
   function selectAthlete(subject) {
@@ -622,7 +631,7 @@
   }
 
   function renderCoaching(overview) {
-    $('coachPanel').hidden=false;$('coachData').hidden=false;$('coachMessage').textContent='';
+    $('coachPanel').hidden=!state.selectedUser?.allAthletes;$('coachData').hidden=false;$('coachMessage').textContent='';
     $('coachScope').textContent=overview.role==='superadmin'?'Todos los arqueros, de todas las academias.':overview.role==='admin'?'Arqueros de tu academia.':'Arqueros que tienes autorizados para supervisar.';
     $('coachArrows').textContent=String(overview.arrows);
     const root=$('coachRoster');root.replaceChildren();
@@ -644,9 +653,9 @@
       root.append(row);
     });
     if(!overview.athletes.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=4;cell.textContent='No hay arqueros disponibles para supervisar.';row.append(cell);root.append(row);}
-    state.users=[currentUser(),...overview.athletes.filter(a=>a.subject).map(a=>normalizeUser({id:a.subject,name:a.name}))];
+    state.users=[...new Map([currentUser(),...overview.athletes.filter(a=>a.subject).map(a=>normalizeUser({id:a.subject,name:a.name}))].map(user=>[user.id,user])).values()];
     $('athletePicker').hidden=false;$('athleteSearch').value=(state.selectedUser||currentUser()).name;
-    $('athleteSearchStatus').textContent=`${overview.athletes.length} arqueros supervisados. También puedes consultar tu propio historial.`;
+    $('athleteSearchStatus').textContent=`${overview.athletes.length} arqueros supervisados.`;
   }
 
   async function loadCoaching(range,signal,sequence) {
@@ -661,11 +670,11 @@
       const overview=await sync.coachOverview({from:range.startKey,to:range.endKey,signal,onProgress:counts=>updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando arqueros…',counts)});signal.throwIfAborted();if(sequence!==state.renderSequence)return;
       state.coaching=overview;state.privileged=true;
       const selected=state.selectedUser;
-      if(selected&&selected.id!==currentUser().id&&!overview.athletes.some(a=>a.subject===selected.id))state.selectedUser=currentUser();
+      if(selected&&!selected.allAthletes&&selected.id!==currentUser().id&&!overview.athletes.some(a=>a.subject===selected.id))state.selectedUser=currentUser();
       renderCoaching(overview);
     }catch(error){
       if(signal.aborted||sequence!==state.renderSequence)return;
-      state.verifiedRole=state.verifiedRole||'unknown';state.selectedUser=currentUser();clearCoaching();$('coachPanel').hidden=false;
+      state.verifiedRole=state.verifiedRole||'unknown';state.selectedUser=currentUser();clearCoaching();$('coachPanel').hidden=true;
       $('coachMessage').textContent='No se pudo consultar el acceso de entrenador o las estadísticas. Reintenta la consulta de la nube.';
     }
   }
@@ -688,25 +697,30 @@
       $('periodDates').textContent=`${formatDate(range.start,{day:'numeric',month:'short',year:'numeric'})} — ${formatDate(range.end,{day:'numeric',month:'short',year:'numeric'})}`;
       if(authFailure){
         clearCoaching();historyError=authFailure.code;historyFailure=safeHistoryDiagnostic(authFailure);
+        if(user.allAthletes){state.selectedUser=currentUser();user=state.selectedUser;}
         sessions=(await localSessionsWithBackup(user)).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
       }else{
         updateHistoryLoading(sequence,'Cargando historial y comprobando los permisos…');
         const requestedUser=user,coaching=loadCoaching(range,signal,sequence);
         renderIdentity(user,cloud?'loading':'local');
-        const results=await Promise.allSettled([coaching,loadSessions(range,requestedUser,signal,sequence)]);
-        if(sequence!==state.renderSequence||signal.aborted)return;
-        for(const result of results)if(result.status==='rejected')throw result.reason;
-        user=state.selectedUser||currentUser();
-        // A fresh server scope check can revoke the selected athlete. Never
-        // publish that athlete's parallel result after the selection was reset.
-        if(user.id!==requestedUser.id){
-          updateHistoryLoading(sequence,'Cargando tu historial personal…',{sessions:0,ends:0,arrows:0});
-          sessions=await loadSessions(range,user,signal,sequence);
-        }else sessions=results[1].value;
+        if(requestedUser.allAthletes){
+          await coaching;if(sequence!==state.renderSequence||signal.aborted)return;
+          user=state.selectedUser||currentUser();sessions=await loadSessions(range,user,signal,sequence);
+        }else{
+          const results=await Promise.allSettled([coaching,loadSessions(range,requestedUser,signal,sequence)]);
+          if(sequence!==state.renderSequence||signal.aborted)return;
+          for(const result of results)if(result.status==='rejected')throw result.reason;
+          user=state.selectedUser||currentUser();
+          if(user.id!==requestedUser.id){
+            updateHistoryLoading(sequence,'Cargando tu historial personal…',{sessions:0,ends:0,arrows:0});
+            sessions=await loadSessions(range,user,signal,sequence);
+          }else sessions=results[1].value;
+        }
       }
       if(sequence!==state.renderSequence||signal.aborted)return;
-    const ownDays = dailyData(sessions, range),days=window.ArbatHistoryActivity?window.ArbatHistoryActivity.decorate(ownDays,user.id===currentUser().id?state.coaching?.days||[]:[]):ownDays, provider = window.Buddy && window.Buddy.trainingHistory;
-    $('studentActivityLegend').hidden=!(state.coaching&&user.id===currentUser().id);
+    const ownDays=dailyData(sessions,range),days=window.ArbatHistoryActivity?window.ArbatHistoryActivity.decorate(ownDays):ownDays,provider=window.Buddy&&window.Buddy.trainingHistory;
+    $('trainingActivityLegend').textContent=user.allAthletes?'Entrenamiento de todos los arqueros':`Entrenamiento de ${user.name}`;
+    $('coachPanel').hidden=!user.allAthletes||!state.coaching;
     resetChartViewport();
     renderIdentity(user,sessions.historySource||(!window.ArbatTrainingSync?.historyEnabled&&provider?'remote':'local'));renderKpis(sessions);renderCalendar(days);renderChart('volumeChart',days,'volume');renderChart('averageChart',days,'average');renderSessions(sessions);
     window.dispatchEvent(new CustomEvent('arbat:history-loaded',{detail:{sessions,user,range,signal,role:state.verifiedRole}}));
@@ -716,6 +730,7 @@
       $('historySyncDiagnostic').textContent=historyFailure?'Diagnóstico: '+historyFailure:'';
       if(!historyError&&state.coaching)$('historySyncNotice').hidden=true;
       $('historySyncMessage').textContent=historyError==='history_offline'?'Sin conexión. Se muestran los datos locales.':historyError==='history_auth_timeout'?'No se pudo terminar de comprobar tu sesión. Reintenta la consulta.':historyError==='captcha_required'?'Confirma la comprobación para consultar la nube. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'La consulta a la nube alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta de la nube. Se muestran los datos locales.';
+      if(historyError&&user.allAthletes)$('historySyncMessage').textContent='No se pudo completar la consulta de Todos. No se muestran datos personales ni resultados parciales como si fueran el conjunto completo. Reintenta la consulta.';
     }
     }catch(error){
       if(signal.aborted||sequence!==state.renderSequence)return;
@@ -728,7 +743,7 @@
   }
 
   $('periodSelect').addEventListener('change', render);
-  $('athleteSearch').addEventListener('focus', event => renderUserResults(event.target.value));
+  $('athleteSearch').addEventListener('focus', () => renderUserResults(''));
   $('athleteSearch').addEventListener('input', event => renderUserResults(event.target.value));
   document.addEventListener('click', event => { if (!$('historyPopover').contains(event.target)) closePopover(); if (!$('athletePicker').contains(event.target)) closeUserResults(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') { closePopover(); closeUserResults(); } });

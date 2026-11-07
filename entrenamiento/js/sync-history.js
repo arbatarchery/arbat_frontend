@@ -18,7 +18,7 @@
    }
    signal?.throwIfAborted();
    const headers={'Content-Type':'application/json',apikey:this.publicKey,Authorization:`Bearer ${current.supabaseToken||this.publicKey}`};if(current.buddyToken)headers['x-buddy-access-token']=current.buddyToken;
-   const signals=[AbortSignal.timeout(10000)];if(signal)signals.push(signal);
+   const signals=[AbortSignal.timeout(body.action==='system.status'?20000:10000)];if(signal)signals.push(signal);
    const response=await this.fetchImpl(`${this.url.replace(/\/$/,'')}/functions/v1/training-sync`,{method:'POST',headers,body:JSON.stringify({schema_version:1,...body}),signal:AbortSignal.any(signals),cache:'no-store',redirect:'error'});
    if(!response.ok){let code=null;try{const data=await response.json();code=data.error;}catch{}throw Object.assign(error(response.status===429?'rate_limited':response.status===401?'auth_required':'history_unavailable'),{httpStatus:response.status,serverCode:code});}
    const reader=response.body.getReader();let length=0;const chunks=[];
@@ -58,11 +58,11 @@
    }while(cursor);
    return overview;
   }
-  async get({from,to,targetSubject=null,signal,onProgress=()=>{}}){
+  async get({from,to,targetSubject=null,allUsers=false,signal,onProgress=()=>{}}){
    this.controller?.abort();const controller=new AbortController();this.controller=controller;
-   try{return await this.load({from,to,targetSubject,signal:signal?AbortSignal.any([signal,controller.signal]):controller.signal,onProgress});}finally{if(this.controller===controller)this.controller=null;}
+   try{return await this.load({from,to,targetSubject,allUsers,signal:signal?AbortSignal.any([signal,controller.signal]):controller.signal,onProgress});}finally{if(this.controller===controller)this.controller=null;}
   }
-  async load({from,to,targetSubject,signal,onProgress}){
+  async load({from,to,targetSubject,allUsers=false,signal,onProgress}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity)throw error('auth_required');
    const sessions=[],deletedIds=[],observed=new Map(),completed=new Set(),cursors=new Set();let cursor=null;
    const report=()=>{
@@ -93,7 +93,7 @@
     completed.add(metadata.id);report();return {...metadata,completed:ends,current:ordered.filter(a=>!a.end_id).map(arrow)};
    };
    do{
-    const page=await this.request({action:'history.list',from,to,cursor,target_subject:targetSubject},identity,signal);report();
+    const page=await this.request(allUsers?{action:'history.all',from,to,cursor}:{action:'history.list',from,to,cursor,target_subject:targetSubject},identity,signal);report();
     if(!Array.isArray(page.sessions)||page.sessions.length>8)throw error('invalid_history_page');
     const controller=new AbortController(),pageSignal=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
     const results=new Array(page.sessions.length);let next=0,firstError=null;
