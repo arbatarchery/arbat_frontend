@@ -64,15 +64,15 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
       const bearer=request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9._~-]+)$/i)?.[1];
       if(!bearer || bearer.length>8192) throw new HttpError(401,'supabase_session_required');
       const body=await readJsonLimited(request.body,131072,timeoutMs);
-      if(!body || Array.isArray(body) || body.schema_version!==1 || !['sync','claim','history.list','history.detail','history.context','history.coach','buddy.session','usage.record','usage.summary','system.status'].includes(body.action)) throw new HttpError(400,'invalid_request');
-      const keys=body.action==='usage.record'?['schema_version','action','event']:body.action==='usage.summary'?['schema_version','action','from','to']:body.action==='history.coach'?['schema_version','action','from','to','cursor','scope_hash']:body.action==='sync'?['schema_version','action','operations']:body.action==='history.list'?['schema_version','action','from','to','cursor','target_subject']:body.action==='history.detail'?['schema_version','action','session_id','revision','collection','cursor']:['schema_version','action'];
+      if(!body || Array.isArray(body) || body.schema_version!==1 || !['sync','claim','history.list','history.all','history.detail','history.context','history.coach','buddy.session','usage.record','usage.summary','system.status'].includes(body.action)) throw new HttpError(400,'invalid_request');
+      const keys=body.action==='history.all'?['schema_version','action','from','to','cursor']:body.action==='usage.record'?['schema_version','action','event']:body.action==='usage.summary'?['schema_version','action','from','to']:body.action==='history.coach'?['schema_version','action','from','to','cursor','scope_hash']:body.action==='sync'?['schema_version','action','operations']:body.action==='history.list'?['schema_version','action','from','to','cursor','target_subject']:body.action==='history.detail'?['schema_version','action','session_id','revision','collection','cursor']:['schema_version','action'];
       if(Object.keys(body).some(k=>!keys.includes(k))) throw new HttpError(400,'unknown_request_fields');
       if(body.action==='sync') {
         if(!Array.isArray(body.operations)||!body.operations.length||body.operations.length>32) throw new HttpError(400,'invalid_batch');
         body.operations.forEach(validateOperation);
         if(body.operations.some(op=>op.session_id!==body.operations[0].session_id))throw new HttpError(400,'invalid_batch_sessions');
       }
-      if(['history.list','history.coach','usage.summary'].includes(body.action)&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.from||'')||!/^\d{4}-\d{2}-\d{2}$/.test(body.to||'')||body.target_subject!=null&&(typeof body.target_subject!=='string'||!body.target_subject.trim()||body.target_subject.length>256)))throw new HttpError(400,'invalid_history_range');
+      if(['history.list','history.all','history.coach','usage.summary'].includes(body.action)&&(!/^\d{4}-\d{2}-\d{2}$/.test(body.from||'')||!/^\d{4}-\d{2}-\d{2}$/.test(body.to||'')||body.target_subject!=null&&(typeof body.target_subject!=='string'||!body.target_subject.trim()||body.target_subject.length>256)))throw new HttpError(400,'invalid_history_range');
       if(body.action.startsWith('history.')&&body.cursor!=null&&(typeof body.cursor!=='string'||!UUID.test(body.cursor)))throw new HttpError(400,'invalid_cursor');
       if(body.action==='history.detail'&&(!UUID.test(body.session_id||'')||!Number.isSafeInteger(body.revision)||body.revision<1||!['ends','arrows'].includes(body.collection)))throw new HttpError(400,'invalid_history_detail');
       if(body.action==='history.coach'&&body.scope_hash!=null&&(typeof body.scope_hash!=='string'||!/^[a-f0-9]{32}$/.test(body.scope_hash)))throw new HttpError(400,'invalid_scope');
@@ -148,7 +148,9 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
           return reply(result.status==='rate_limited'?429:200,result);
         }
         const args={p_principal:user.id,p_buddy_subject:identity?.subject??null,p_after:body.cursor??null};
-        const result=body.action==='history.list'
+        const result=body.action==='history.all'
+          ?await rpc('training_history_all',{...args,p_from:body.from,p_to:body.to},1048576)
+          :body.action==='history.list'
           ?await rpc('training_history_list',{...args,p_from:body.from,p_to:body.to,p_target_subject:body.target_subject??null},1048576)
           :await rpc('training_history_detail',{...args,p_session:body.session_id,p_revision:body.revision,p_collection:body.collection},1048576);
         return reply(result.status==='rate_limited'?429:200,result,result.status==='rate_limited'?{'Retry-After':'60'}:{});

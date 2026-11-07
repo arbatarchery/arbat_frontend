@@ -58,7 +58,7 @@
    const result=await window.ArbatTrainingSync.systemStatus({signal});if(!valid())return;
    if(!['admin','superadmin'].includes(result.role)||result.status!=='accepted'){reset();return;}
    report=result;const at=Date.now(),ms=at-start;
-   probe.server={status:ms>3000?'warning':'ok',at,ms,action:'system.status',code:'ok'};
+   probe.server={status:ms>10000?'warning':'ok',at,ms,action:'system.status',code:'ok'};
    probe.database={status:result.database_read_only?'error':'ok',at,action:'system.status',code:result.database_read_only?'database_read_only':'ok',note:result.database_read_only?'El servidor informa modo de solo lectura.':'Lectura confirmada. Esta prueba no inserta flechas.'};
    probe.identity={status:'ok',at,note:'Cuenta y permisos administrativos verificados por el servidor.'};
   }catch(e){if(!valid()||signal.aborted)return;if(e.httpStatus===401||e.httpStatus===403){reset();return;}probe.server={status:e.httpStatus===429?'warning':e.httpStatus?'error':'unknown',at:Date.now(),action:'system.status',code:e.httpStatus?D.safeCode(e.serverCode||e.code||'system_status_unavailable'):undefined,note:e.httpStatus?undefined:'Sin respuesta confirmada; no es posible determinar el estado del servidor.',http:e.httpStatus};probe.database={status:'unknown',at:Date.now(),note:'No se pudo comprobar la base por esta vía. Revisar el error de training-sync.'};}})(),
