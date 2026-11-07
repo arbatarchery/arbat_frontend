@@ -93,3 +93,5 @@
 #systemStatus button.history-button{background:#28333d;color:#edf2f6;border:1px solid #71808d;cursor:pointer}#systemStatus button.history-button:hover{background:#34424f}#systemStatus button.history-button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 
 .capacity-notice{border:1px solid #ff7373}.capacity-notice[hidden]{display:none}.capacity-notice p{color:#edf2f6;margin-top:.6rem}.capacity-notice .system-indicator{color:#ffb5b5;font-size:1rem}
+
+#athletePicker{position:sticky;top:0;z-index:50;align-items:center;gap:12px;padding:10px 14px;margin:12px 0;background:#202831;box-shadow:0 4px 12px rgba(0,0,0,.22)}#athletePicker .athlete-search-status{min-height:0;margin:2px 0 0!important;font-size:.76rem}#athletePicker .athlete-search{min-width:0}#athletePicker .athlete-results{top:calc(100% + 4px);max-height:45vh;overflow-y:auto}#athletePicker[hidden]{display:none}

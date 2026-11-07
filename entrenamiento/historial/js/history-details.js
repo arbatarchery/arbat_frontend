@@ -35,7 +35,7 @@
    const included=filtered(s);if(!included.length)continue;
    const arrows=included.flatMap(e=>e.arrows||[]);all.push(...arrows);const row=document.createElement('tr');
    const settings=[...new Set(included.map(e=>`${e.sessionType==='competition'?'Competencia':'Entrenamiento'} · ${e.shootingDistance||'—'} · ${e.targetSize||'—'}`))].join(' / ');
-   [time(s.startedAt||s.date),settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—'].forEach(v=>row.append(text('td',v)));
+   [loaded.user?.allAthletes?`${s.owner?.name||'Arquero'} · ${time(s.startedAt||s.date)}`:time(s.startedAt||s.date),settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—'].forEach(v=>row.append(text('td',v)));
    const cell=document.createElement('td'),details=document.createElement('details'),summary=text('summary','Más');details.className='history-session-toggle';details.append(summary);
    cell.append(details);row.prepend(cell);body.append(row);
    const expandedRow=document.createElement('tr'),expandedCell=document.createElement('td');expandedCell.colSpan=7;expandedRow.className='history-expanded-session';expandedRow.hidden=true;expandedRow.append(expandedCell);body.append(expandedRow);
@@ -62,10 +62,13 @@
   $('detailDistribution').textContent=`Distribución de puntajes de la tabla · ${all.length} flechas · ${distribution(all)}`;
   if(!body.children.length)root.append(text('p','No hay sesiones con estos filtros.'));else root.append(node);
  }
+ let usageCache=null;
  async function usage(view,token){
   const panel=$('usagePanel');panel.hidden=!['admin','superadmin'].includes(view.role);$('usageData').replaceChildren();if(panel.hidden)return;
   $('usageMessage').textContent='Cargando aperturas y ciudades…';
-  try{const report=await window.ArbatTrainingSync.usageSummary({from:view.range.startKey,to:view.range.endKey,signal:view.signal});if(token!==sequence||!signed())return;
+  try{const key=JSON.stringify([view.account,view.range.startKey,view.range.endKey]);
+   if(!usageCache||usageCache.key!==key||usageCache.signal.aborted)usageCache={key,signal:view.periodSignal||view.signal,promise:window.ArbatTrainingSync.usageSummary({from:view.range.startKey,to:view.range.endKey,signal:view.periodSignal||view.signal})};
+   const report=await usageCache.promise;if(token!==sequence||!signed())return;
    const data=$('usageData'),n=report.totals;
    $('usageMessage').textContent=`${number(n.opens)} aperturas · ${number(n.accounts)} cuentas · ${number(n.anonymous_browsers)} navegadores anónimos · ${number(n.cities)} ciudades · ${number(n.countries)} países.`;
    data.append(text('h3','Ciudades observadas'));const cities=table(['Ciudad','Región / país','Usuarios','Aperturas','Andanadas','Última observación']);
