@@ -69,6 +69,12 @@ scripts:
       </select>
     </label>
   </section>
+  <section id="historyLoading" class="history-loading" role="status" aria-live="polite" hidden>
+    <strong>Cargando datos de la nube</strong>
+    <p id="historyLoadingStage">Preparando tu sesión…</p>
+    <progress aria-label="Cargando datos de la nube"></progress>
+    <p id="historyLoadingCounts">Sesiones: 0 · Andanadas: 0 · Flechas: 0 · Arqueros: 0</p>
+  </section>
   <details class="history-card history-expand coach-panel" id="coachPanel" hidden>
     <summary id="coachTitle">Panel de entrenadores</summary>
     <p id="coachScope"></p>
@@ -111,12 +117,6 @@ scripts:
 
   <details class="history-card history-expand history-sessions" open><summary id="sessionsTitle">Sesiones del período</summary><p>Las más recientes aparecen primero.</p><div id="sessionList" class="session-list"></div></details>
   <details class="history-card history-expand history-mobile-invite" id="historyDesktopInvite" open><summary>Más detalle en una computadora</summary><p>Para consultar el detalle completo de tus sesiones, andanadas y flechas, abre arbatarchery.com en una computadora e inicia sesión con tu cuenta.</p></details>
-  <section id="historyLoading" class="history-loading" role="status" aria-live="polite" hidden>
-    <strong>Cargando datos de la nube</strong>
-    <p id="historyLoadingStage">Preparando tu sesión…</p>
-    <progress aria-label="Cargando datos de la nube"></progress>
-    <p id="historyLoadingCounts">Sesiones: 0 · Andanadas: 0 · Flechas: 0 · Arqueros: 0</p>
-  </section>
   <details class="history-card history-expand" id="historyDetails" hidden><summary>Detalle completo de sesiones, andanadas y flechas</summary>
     <p>Los filtros siguientes afectan solo a esta tabla y su distribución de puntajes.</p>
     <div class="history-detail-filters"><label>Tipo <select id="detailType"><option value="">Todos</option><option value="training">Entrenamiento</option><option value="competition">Competencia</option></select></label><label>Distancia <select id="detailDistance"><option value="">Todas</option></select></label><label>Diana <select id="detailTarget"><option value="">Todas</option></select></label></div>
