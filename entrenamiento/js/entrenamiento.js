@@ -6,10 +6,6 @@
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
-  const dateKeyFrom = value => {
-    const d=new Date(value);
-    return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  };
   const storageKey = 'arbat-training-current';
   const legacyStorageKey = `arbat-training-${localDateKey()}`;
   const historyStorageKey = 'arbat-training-history';
@@ -33,9 +29,9 @@
     const anonymousId=anonymousDeviceId();
     return{id:`anon:${anonymousId}`,name:'',anonymous:true,anonymousId};
   };
-  const fresh = () => ({id:sessionId(),date:localDateKey(),startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',shootingDistance:'',targetSize:'',notes:'',owner:ownerSnapshot()});
+  const fresh = () => ({id:sessionId(),date:localDateKey(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,startedAt:new Date().toISOString(),completed:[],current:[],arrowsPerEnd:DEFAULT_END_SIZE,sessionType:'training',shootingDistance:'',targetSize:'',notes:'',owner:ownerSnapshot()});
   let state = fresh(), activePointer = null, provisional = null, pendingEndTimer = 0;
-  let previousSyncSnapshot = null;
+  let previousSyncSnapshot = null, sessionCloseTimer = 0;
 
   const $ = id => document.getElementById(id);
   const svg = $('target'), wrap = $('targetWrap'), highlight = $('highlight'), aimCrosshair = $('aimCrosshair');
@@ -72,14 +68,35 @@
 
   const endLimit = () => state.arrowsPerEnd;
   const sessionStarted = () => state.current.length > 0 || state.completed.length > 0;
-  const sessionHasDifferentDay = () => {
-    if(state.date!==localDateKey())return true;
-    const timestamps=[
-      ...state.completed.map(end=>end.endedAt||end.arrows?.[end.arrows.length-1]?.recordedAt),
-      ...state.current.map(arrow=>arrow.recordedAt)
-    ].filter(Boolean);
-    return timestamps.some(timestamp=>dateKeyFrom(timestamp)!==localDateKey());
-  };
+  function sessionDeadline() {
+    if(!sessionStarted())return null;
+    const [year,month,day]=String(state.date||'').split('-').map(Number);
+    const midnight=new Date(year,month-1,day+1);
+    if(!Number.isFinite(midnight.getTime()))return null;
+    const arrows=[...state.completed.flatMap(end=>end.arrows||[]),...state.current];
+    const extend=arrows.some(arrow=>{
+      const recorded=Date.parse(arrow.recordedAt);
+      return recorded>=midnight.getTime()-30*60*1000&&recorded<midnight.getTime();
+    });
+    if(extend)midnight.setDate(midnight.getDate()+1);
+    return midnight;
+  }
+
+  function closeExpiredSession() {
+    const deadline=sessionDeadline();
+    if(!deadline||Date.now()<deadline.getTime())return false;
+    archiveCurrentSession('date-change',deadline.toISOString());
+    $('status').textContent='La sesión anterior se cerró automáticamente a medianoche.';
+    return true;
+  }
+
+  function scheduleSessionClose() {
+    clearTimeout(sessionCloseTimer);
+    const deadline=sessionDeadline();
+    if(deadline)sessionCloseTimer=setTimeout(()=>{
+      if(!closeExpiredSession())scheduleSessionClose();
+    },Math.min(2147483647,Math.max(0,deadline.getTime()-Date.now())));
+  }
 
   function save(){
     const serialized=JSON.stringify(state);let legacySaved=false;
@@ -126,7 +143,7 @@
 
   function finishCurrentEnd(automatic=false){
     clearTimeout(pendingEndTimer);pendingEndTimer=0;
-    if(!state.current.length)return;
+    if(closeExpiredSession()||!state.current.length)return;
     const lastArrow=state.current[state.current.length-1];
     state.completed.push({
       arrows:state.current.map(a=>({...a})),
@@ -146,6 +163,12 @@
   }
 
   function addArrow(arrow){
+    closeExpiredSession();
+    if(!sessionStarted()){
+      state.date=localDateKey();
+      state.startedAt=arrow.recordedAt||new Date().toISOString();
+      state.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
     const limit=endLimit();
     if (state.current.length >= limit) return;
     arrow.recordedAt = arrow.recordedAt || new Date().toISOString();
@@ -213,6 +236,7 @@
     }
   }
   wrap.addEventListener('pointerdown', e => {
+    closeExpiredSession();
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     try{wrap.setPointerCapture(e.pointerId);}catch(_){}
     if(pointers.size>=2){beginPinch();e.preventDefault();return;}
@@ -240,14 +264,14 @@
   wrap.addEventListener('pointercancel', e => {clearPointer(e.pointerId);resetProvisional();});
 
   $('undoBtn').addEventListener('click',()=>{
-    if(!state.current.length) return;
+    if(closeExpiredSession()||!state.current.length) return;
     clearTimeout(pendingEndTimer);pendingEndTimer=0;
     const removed=state.current.pop(); save(); vibrate(40); render();
     $('status').textContent=`Última flecha eliminada (${removed.label}).`;
   });
   $('finishBtn').addEventListener('click',()=>finishCurrentEnd(false));
   $('finishSessionBtn').addEventListener('click',()=>{
-    if(!sessionStarted())return;
+    if(closeExpiredSession()||!sessionStarted())return;
     if(!window.confirm('¿Terminar esta sesión? La próxima sesión comenzará nuevamente en la andanada 1.'))return;
     const ended=archiveCurrentSession('manual');
     if(ended){vibrate(140);$('status').textContent='Sesión terminada y guardada. Ya puedes configurar una nueva sesión.';}
@@ -317,7 +341,7 @@
     return '\uFEFF'+csvComments.join('\r\n')+'\r\n'+data;
   }
 
-  function archiveCurrentSession(reason){
+  function archiveCurrentSession(reason,endedAt=new Date().toISOString()){
     clearTimeout(pendingEndTimer);pendingEndTimer=0;
     if(state.current.length){
       const lastArrow=state.current[state.current.length-1];
@@ -337,7 +361,7 @@
     const snapshot=JSON.parse(JSON.stringify(state));
     const archived={
       ...snapshot,
-      endedAt:new Date().toISOString(),
+      endedAt,
       endReason:reason,
       total:snapshot.completed.reduce((sum,end)=>sum+subtotal(end.arrows||[]),0),
       csv:csvText(snapshot)
@@ -520,6 +544,7 @@
     $('endSummaryOverlay').hidden=!locked;
     wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();updatePreviousConstellation();
     schedulePendingEnd();
+    scheduleSessionClose();
   }
 
   document.querySelectorAll('input[name="arrowsPerEnd"]').forEach(input=>input.addEventListener('change',e=>{
@@ -543,14 +568,9 @@
   });
 
   $('date').textContent=new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
-  if(sessionHasDifferentDay()){
-    const archived=archiveCurrentSession('date-change');
-    $('status').textContent=archived
-      ? 'La sesión anterior fue cerrada porque pertenecía a otro día. Nueva sesión iniciada en la andanada 1.'
-      : 'Nueva sesión del día lista para comenzar.';
-  }else{
-    save();render();
-  }
+  if(!closeExpiredSession()){save();render();}
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)closeExpiredSession();});
+  window.addEventListener('pageshow',closeExpiredSession);
 
   // Mensaje de bienvenida de Raulito (módulo says de Buddy) al entrar a la página.
   const MENSAJE_BIENVENIDA='Anotá tus flechas tocando y deslizando sobre la diana. Usá dos dedos para ampliar o mover la diana. Los puntajes se guardan localmente en tu dispositivo.';

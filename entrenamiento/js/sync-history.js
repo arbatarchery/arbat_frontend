@@ -45,13 +45,14 @@
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');
    return this.request({action:'usage.summary',from,to},identity,signal);
   }
-  async coachOverview({from,to,signal,onProgress=()=>{}}){
+  async coachOverview({from,to,signal,firstPageOnly=false,onProgress=()=>{}}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity?.accountKey)throw error('auth_required');
    let cursor=null,overview=null;const seen=new Set();
    do{
     const page=await this.request({action:'history.coach',from,to,cursor,scope_hash:overview?.scope_hash??null},identity,signal);
     if(page.status==='changed')throw error('history_changed');
     if(!Array.isArray(page.athletes)||page.athletes.length>32||!Array.isArray(page.days)||typeof page.scope_hash!=='string')throw error('invalid_history_page');
+    if(firstPageOnly)return page;
     if(!overview)overview={...page,athletes:[]};
     overview.athletes.push(...page.athletes);onProgress({athletes:overview.athletes.length});if(overview.athletes.length>10000)throw error('history_response_limit');
     cursor=page.next_cursor;if(cursor&&seen.has(cursor))throw error('invalid_history_cursor');if(cursor)seen.add(cursor);
@@ -60,7 +61,11 @@
   }
   async get({from,to,targetSubject=null,allUsers=false,signal,onProgress=()=>{}}){
    this.controller?.abort();const controller=new AbortController();this.controller=controller;
-   try{return await this.load({from,to,targetSubject,allUsers,signal:signal?AbortSignal.any([signal,controller.signal]):controller.signal,onProgress});}finally{if(this.controller===controller)this.controller=null;}
+   const options={from,to,targetSubject,allUsers,signal:signal?AbortSignal.any([signal,controller.signal]):controller.signal,onProgress};
+   try{
+    try{return await this.load(options);}
+    catch(cause){if(cause.code!=='history_changed'||options.signal.aborted)throw cause;return await this.load(options);}
+   }finally{if(this.controller===controller)this.controller=null;}
   }
   async load({from,to,targetSubject,allUsers=false,signal,onProgress}){
    if(!this.enabled)throw error('history_disabled');const identity=await this.identityProvider();if(!identity)throw error('auth_required');
@@ -73,7 +78,7 @@
     if(typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw error('invalid_history_metadata');
     if(metadata.deletedAt){deletedIds.push(metadata.id);return null;}
     const key=`${scope(identity)}:${metadata.id}:${metadata.revision}`;let part=this.parts.get(key);
-    if(!part){if(this.parts.size>=1000)throw error('history_cache_limit');part={ends:[],arrows:[],cursor:{ends:null,arrows:null},done:{ends:false,arrows:false}};this.parts.set(key,part);}
+    if(!part){if(this.parts.size>=1000)this.parts.delete(this.parts.keys().next().value);part={ends:[],arrows:[],cursor:{ends:null,arrows:null},done:{ends:false,arrows:false}};this.parts.set(key,part);}
     observed.set(metadata.id,part);report();
     for(const collection of ['ends','arrows']){
      while(!part.done[collection]){

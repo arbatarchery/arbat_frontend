@@ -104,6 +104,37 @@
     return { ...session, date: session.date || dateKey(startedAt || endedAt), startedAt, endedAt, arrows };
   }
 
+  function cloudSession(session,includeUnfinished) {
+    return {...session,isCurrent:!session.endedAt,current:includeUnfinished||session.endedAt?session.current:[]};
+  }
+
+  function sessionsInRange(sessions,range) {
+    const includes=day=>day>=range.startKey&&day<=range.endKey;
+    const datesByZone=new Map();
+    return sessions.flatMap(session=>{
+      if(includes(session.date))return [session];
+      // A session that started before this period can have arrows in it after midnight.
+      const zone=session.timezone||'America/La_Paz';
+      if(!datesByZone.has(zone)){
+        const options={year:'numeric',month:'2-digit',day:'2-digit'};
+        try{datesByZone.set(zone,new Intl.DateTimeFormat('sv-SE',{...options,timeZone:zone}));}
+        catch{datesByZone.set(zone,new Intl.DateTimeFormat('sv-SE',{...options,timeZone:'America/La_Paz'}));}
+      }
+      let date='';
+      const filter=arrow=>{
+        const recorded=Date.parse(arrow.recordedAt);
+        if(!Number.isFinite(recorded))return false;
+        const day=datesByZone.get(zone).format(recorded);
+        if(!includes(day))return false;
+        if(!date||day<date)date=day;
+        return true;
+      };
+      const completed=(session.completed||[]).map(end=>({...end,arrows:(end.arrows||[]).filter(filter)})).filter(end=>end.arrows.length);
+      const current=(session.current||[]).filter(filter);
+      return date?[normalizeSession({...session,date,completed,current,arrows:undefined})]:[];
+    });
+  }
+
   function localSessions() {
     const saved = readJson(HISTORY_KEY, []);
     const sessions = Array.isArray(saved) ? saved.slice() : [];
@@ -186,14 +217,6 @@
 
   async function loadSessions(range, user, signal,sequence) {
     const sync=window.ArbatTrainingSync;
-    if(user.allAthletes){
-      if(!state.coaching||!['coach','admin','superadmin'].includes(state.verifiedRole))throw Object.assign(new Error('auth_required'),{code:'auth_required'});
-      try{
-        const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,allUsers:true,signal,onProgress:(_count,counts)=>updateHistoryLoading(sequence,'Cargando el historial de todos los arqueros…',counts)});
-        const sessions=remote.sessions.map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
-        Object.defineProperty(sessions,'historySource',{value:'remote'});return sessions;
-      }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);return [];}
-    }
     if(sync?.historyEnabled&&window.ArbatSyncHistory){
       let local=await localSessionsWithBackup(user);const own=currentUser();historyError=null;historyFailure=null;
       if(!rawCurrentUser()&&user.id!==own.id)return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
@@ -201,7 +224,8 @@
         const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,targetSubject:user.id===own.id?null:user.id,signal,onProgress:(_count,counts)=>{if((state.selectedUser||currentUser()).id===user.id)updateHistoryLoading(sequence,'Conexión con la nube confirmada · Cargando sesiones…',counts);}});
         local=await localSessionsWithBackup(user);
         const mappings=(await sync.localSessions()).map(r=>({...r,normalized:normalizeSession(r.snapshot)}));
-        const merged=window.ArbatSyncHistory.merge(local,remote,mappings).map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
+        remote.sessions=remote.sessions.map(session=>cloudSession(session,user.id===own.id));
+        const merged=sessionsInRange(window.ArbatSyncHistory.merge(local,remote,mappings).map(normalizeSession),range);
         Object.defineProperty(merged,'historySource',{value:'mixed'});return merged;
       }catch(error){if(signal?.aborted)throw error;historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);if(historyError==='auth_required'&&!rawCurrentUser()&&!error.httpStatus){historyError=null;historyFailure=null;}local=await localSessionsWithBackup(user);return local.filter(s=>s.date>=range.startKey&&s.date<=range.endKey);}
     }
@@ -647,13 +671,13 @@
       if(athlete.subject){const button=document.createElement('button');button.type='button';button.textContent=athlete.name;button.addEventListener('click',()=>selectAthlete(athlete.subject));name.append(button);}
       else name.textContent=athlete.name;
       row.append(name);
-      let timestamp='Sin sesiones';
+      let timestamp='Sin actividad en el período';
       if(athlete.last_session_at){const date=new Date(athlete.last_session_at);if(!Number.isNaN(date.getTime()))timestamp=formatDate(date,{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/La_Paz'});}
       else if(athlete.last_session_date)timestamp=formatDate(parseLocalDate(athlete.last_session_date),{day:'2-digit',month:'2-digit',year:'numeric'})+' · hora no disponible';
-      for(const value of [timestamp,athlete.last_session_date?String(athlete.day_arrows):'—',athlete.day_average==null?'—':formatNumber(athlete.day_average)]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}
+      for(const value of [timestamp,athlete.last_session_date?String(athlete.day_arrows):'—',athlete.day_points??'—',athlete.day_average==null?'—':formatNumber(athlete.day_average)]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}
       root.append(row);
     });
-    if(!overview.athletes.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=4;cell.textContent='No hay arqueros disponibles para supervisar.';row.append(cell);root.append(row);}
+    if(!overview.athletes.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=5;cell.textContent='No hay arqueros disponibles para supervisar.';row.append(cell);root.append(row);}
     state.users=[...new Map([currentUser(),...overview.athletes.filter(a=>a.subject).map(a=>normalizeUser({id:a.subject,name:a.name}))].map(user=>[user.id,user])).values()];
     $('athletePicker').hidden=false;$('athleteSearch').value=(state.selectedUser||currentUser()).name;
     $('athleteSearchStatus').textContent=`${overview.athletes.length} arqueros supervisados.`;
@@ -671,7 +695,7 @@
       },
       loadAll:async signal=>{
         const remote=await sync.remoteHistory({from:range.startKey,to:range.endKey,allUsers:true,signal});
-        const sessions=remote.sessions.map(normalizeSession).filter(s=>s.date>=range.startKey&&s.date<=range.endKey);
+        const sessions=sessionsInRange(remote.sessions.map(session=>normalizeSession(cloudSession(session,false))),range).filter(session=>session.arrows.length);
         Object.defineProperty(sessions,'historySource',{value:'remote'});return sessions;
       },
       partition:(selected,all,meta)=>{
@@ -763,6 +787,31 @@
       if(sequence===state.renderSequence){state.loading=false;$('historyLoading').hidden=true;$('trainingHistory').setAttribute('aria-busy','false');}
     }
   }
+
+  let checkingLiveHistory=false;
+  async function refreshLiveHistory() {
+    const entry=periodCache.entry,overview=entry?.metadataValue?.overview;
+    if(checkingLiveHistory||state.loading||document.hidden||!navigator.onLine||!overview?.activity_version||entry.prefetchState==='loading')return;
+    const range=selectedRange();
+    if(entry.key!==JSON.stringify([currentUser().id,range.startKey,range.endKey])){
+      periodCache.clear();await render();return;
+    }
+    checkingLiveHistory=true;
+    try{
+      const latest=await window.ArbatTrainingSync.coachOverview({from:range.startKey,to:range.endKey,signal:entry.signal,firstPageOnly:true});
+      if(periodCache.entry!==entry||entry.signal.aborted)return;
+      if(latest.scope_hash!==overview.scope_hash||latest.activity_version!==overview.activity_version){
+        periodCache.clear();await render();
+      }
+    }catch(error){
+      if(periodCache.entry===entry&&!entry.signal.aborted&&[401,403].includes(error.httpStatus)){
+        periodCache.clear();clearCoaching();await render();
+      }
+    }finally{checkingLiveHistory=false;}
+  }
+  setInterval(refreshLiveHistory,10000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveHistory();});
+  window.addEventListener('online',refreshLiveHistory);
 
   $('periodSelect').addEventListener('change', ()=>{periodCache.clear();render();});
   $('athleteSearch').addEventListener('focus', () => renderUserResults(''));

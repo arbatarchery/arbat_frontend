@@ -10,19 +10,19 @@ const scripts=await Promise.all(['sync-store.js','sync-engine.js','sync-bootstra
 const fixture=JSON.parse(await readFile(new URL('tests/fixtures/statetty/session.json',root),'utf8'));
 const plain=v=>JSON.parse(JSON.stringify(v));
 
-async function browser({saved=null,storage=new Map(),indexedDB=new IDBFactory(),identity=null,failWrites=false}={}){
+async function browser({saved=null,storage=new Map(),indexedDB=new IDBFactory(),identity=null,failWrites=false,now='2026-11-01T14:00:00Z'}={}){
  const elements=new Map(),events=new Map(),telemetry=[];let user=identity,writeFailure=failWrites;
  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,style:{setProperty(){}},classList:{toggle(){}},handlers:{},
   addEventListener(event,fn){this.handlers[event]=fn;},setAttribute(){},append(){},replaceChildren(){},getScreenCTM(){return {inverse(){return {};}};},
   createSVGPoint(){return {x:0,y:0,matrixTransform(){return this;}};}});return elements.get(id);};
  if(saved)storage.set('arbat-training-current',JSON.stringify(saved));
- const fixed=Date.parse('2026-11-01T14:00:00Z');
+ const fixed=Date.parse(now);
  class Clock extends Date{constructor(...args){super(...(args.length?args:[fixed]));}static now(){return fixed;}}
  const context={Date:Clock,Intl,crypto:globalThis.crypto,TextEncoder,TextDecoder,indexedDB,structuredClone,
   CustomEvent:globalThis.CustomEvent,setTimeout:()=>1,clearTimeout(){},navigator:{onLine:true},
   localStorage:{get length(){return storage.size;},key(i){return [...storage.keys()][i]??null;},getItem(k){return storage.get(k)??null;},
    setItem(k,v){if(writeFailure)throw new Error('QuotaExceededError');storage.set(k,v);}},
-  document:{getElementById:element,querySelectorAll:()=>[],createElement:()=>element(crypto.randomUUID()),createElementNS:()=>element(crypto.randomUUID()),activeElement:null},
+  document:{addEventListener(){},getElementById:element,querySelectorAll:()=>[],createElement:()=>element(crypto.randomUUID()),createElementNS:()=>element(crypto.randomUUID()),activeElement:null},
   addEventListener(event,fn){if(!events.has(event))events.set(event,[]);events.get(event).push(fn);},
   dispatchEvent(event){for(const fn of events.get(event.type)||[])fn(event);},matchMedia:()=>({matches:false}),
   fetch:()=>assert.fail('disabled browser must not perform network requests'),confirm:()=>true,
@@ -132,4 +132,24 @@ test('a session assigned by history claim recovers its owner before logout separ
  b=await browser({indexedDB:db,storage});t.after(()=>b.close());assert.equal(b.context.__test.getState().owner.id,'buddy-A');
  b.context.__test.syncOwner();assert.equal(b.context.__test.getState().owner.anonymous,true);
  assert.equal(JSON.parse(storage.get('arbat-training-history'))[0].owner.id,'buddy-A');
+});
+
+
+test('midnight archives a partial end and a late arrow extends the session only one night',async t=>{
+ const previousTZ=process.env.TZ;process.env.TZ='America/La_Paz';
+ t.after(()=>{if(previousTZ===undefined)delete process.env.TZ;else process.env.TZ=previousTZ;});
+ const session=recordedAt=>({...fixture,startedAt:'2026-11-01T22:00:00-04:00',completed:[],current:[{label:'8',score:8,recordedAt}]});
+ const early=await browser({saved:session('2026-11-01T23:29:59-04:00'),now:'2026-11-02T00:05:00-04:00'});t.after(()=>early.close());
+ const earlyArchive=JSON.parse(early.storage.get('arbat-training-history'))[0];
+ assert.equal(earlyArchive.endedAt,'2026-11-02T04:00:00.000Z');
+ assert.equal(earlyArchive.completed[0].arrows.length,1);
+ const late=await browser({saved:session('2026-11-01T23:30:00-04:00'),now:'2026-11-02T23:50:00-04:00'});t.after(()=>late.close());
+ assert.equal(late.context.__test.getState().id,fixture.id);
+ assert.equal(late.storage.get('arbat-training-history'),undefined);
+ late.context.__test.addArrow({label:'9',score:9});
+ await late.context.ArbatTrainingSync.settled();
+ const next=await browser({storage:late.storage,now:'2026-11-03T00:00:00-04:00'});t.after(()=>next.close());
+ const nextArchive=JSON.parse(next.storage.get('arbat-training-history'))[0];
+ assert.equal(nextArchive.endedAt,'2026-11-03T04:00:00.000Z');
+ assert.equal(nextArchive.completed[0].arrows.length,2);
 });
