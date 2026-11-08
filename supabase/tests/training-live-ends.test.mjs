@@ -22,6 +22,9 @@ test('supervisors see completed ends in the selected period while the session is
  await db.query('insert into arbat_private.school_members values($1,$2),($1,$3),($1,$4)',[school,id(1),id(2),id(3)]);
  await db.query("insert into arbat_private.role_assignments(user_id,role,school_id) values($1,'coach',$4),($2,'admin',$4),($3,'superadmin',null)",[id(1),id(3),id(4),school]);
  await db.query('insert into arbat_private.coach_athletes(school_id,coach_id,athlete_id) values($1,$2,$3)',[school,id(1),id(2)]);
+ const contact=['Arquera Demo','arquera@example.test','+591 70000000'];
+ await db.query('select public.training_history_context($1,$2,$3,$4,$5)',[id(2),'buddy-2',...contact]);
+ assert.equal((await db.query("select has_function_privilege('authenticated','public.training_history_context(uuid,text,text,text,text)','execute') allowed")).rows[0].allowed,false);
  const [{today,yesterday,now}]=(await db.query('select current_date::text today,(current_date-1)::text yesterday,now()::text now')).rows;
  const session=id(100),arrow=id(101),end=id(102);
  const operation=(n,kind,entity,revision,payload)=>({operation_id:id(n),session_id:session,entity_id:entity,kind,base_revision:revision,payload});
@@ -41,6 +44,8 @@ test('supervisors see completed ends in the selected period while the session is
  for(const [index,n] of [1,3,4].entries()){
   const result=await overview(n),row=result.athletes.find(a=>a.id===id(2));
   assert.equal(result.arrows,1);assert.equal(row.day_points,8);assert.equal(row.day_average,8);
+  assert.equal(row.email,n===1?null:contact[1]);
+  assert.equal(row.phone,n===1?null:contact[2]);
   assert.equal(row.last_session_date,today);assert.notEqual(result.activity_version,versions[index]);
   assert.equal((await overview(n,yesterday)).athletes.find(a=>a.id===id(2)).last_session_date,null);
  }

@@ -27,15 +27,34 @@
  function table(headers){const node=document.createElement('table'),head=document.createElement('thead'),row=document.createElement('tr'),body=document.createElement('tbody');headers.forEach(h=>{const cell=text('th',h);cell.scope='col';row.append(cell);});head.append(row);node.append(head,body);return {node,body};}
  function total(arrows){return arrows.reduce((sum,a)=>sum+score(a),0);}
  function distribution(arrows){const bins=new Map();for(const a of arrows){const label=String(a.label??a.score??'M');bins.set(label,(bins.get(label)||0)+1);}return ['X','10','9','8','7','6','5','4','3','2','1','M'].filter(k=>bins.has(k)).map(k=>`${k}: ${bins.get(k)}`).join(' · ')||'Sin flechas';}
+ function sessionIdentity(session,contacts){
+  const ownerId=session.owner_id||session.owner?.id;
+  const own=Boolean(loaded.account&&loaded.user?.id===loaded.account)||Boolean(loaded.actorId&&ownerId===loaded.actorId);
+  const profile=own
+   ?[window.Buddy?.user?.getState?.()?.user,window.ArbatUser?.get?.(),window.Buddy?.auth?.getUser?.()]
+     .find(candidate=>candidate&&String(candidate.id??candidate._id)===loaded.account)
+   :contacts.get(ownerId);
+  const name=session.owner?.name||(loaded.user?.allAthletes?'Arquero':loaded.user?.name)||'Arquero';
+  const cell=document.createElement('td'),label=text('span',name);
+  const fields=[`Nombre: ${name}`];
+  if(own||['admin','superadmin'].includes(loaded.role)){
+   fields.push(`Correo electrónico: ${profile?.email||'No disponible'}`,`Teléfono: ${profile?.phone||'No disponible'}`);
+  }
+  label.title=fields.join('\n');
+  cell.append(label,document.createTextNode(` · ${time(session.startedAt||session.date)}`));
+  return cell;
+ }
  function renderDetails(){
   if(!loaded||!signed()||!desktopScreen.matches)return;
   const root=$('historySessionTable');root.replaceChildren();
-  const {node,body}=table(['Detalle','Fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio']);let all=[];
+  const contacts=new Map(loaded.contacts?.map(athlete=>[athlete.id,athlete]));
+  const {node,body}=table(['Detalle','Arquero / fecha y hora','Tipo / distancia / diana','Andanadas','Flechas','Puntos','Promedio']);let all=[];
   for(const s of [...loaded.sessions].sort((a,b)=>String(b.startedAt||b.date).localeCompare(String(a.startedAt||a.date)))){
    const included=filtered(s);if(!included.length)continue;
    const arrows=included.flatMap(e=>e.arrows||[]);all.push(...arrows);const row=document.createElement('tr');
    const settings=[...new Set(included.map(e=>`${e.sessionType==='competition'?'Competencia':'Entrenamiento'} · ${e.shootingDistance||'—'} · ${e.targetSize||'—'}`))].join(' / ');
-   [loaded.user?.allAthletes?`${s.owner?.name||'Arquero'} · ${time(s.startedAt||s.date)}`:time(s.startedAt||s.date),settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—'].forEach(v=>row.append(text('td',v)));
+   row.append(sessionIdentity(s,contacts));
+   [settings,included.length,arrows.length,number(total(arrows)),arrows.length?number(total(arrows)/arrows.length):'—'].forEach(v=>row.append(text('td',v)));
    const cell=document.createElement('td'),details=document.createElement('details'),summary=text('summary','Más');details.className='history-session-toggle';details.append(summary);
    cell.append(details);row.prepend(cell);body.append(row);
    const expandedRow=document.createElement('tr'),expandedCell=document.createElement('td');expandedCell.colSpan=7;expandedRow.className='history-expanded-session';expandedRow.hidden=true;expandedRow.append(expandedCell);body.append(expandedRow);

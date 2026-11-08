@@ -754,7 +754,11 @@
     $('coachPanel').hidden=!user.allAthletes||!state.coaching;
     resetChartViewport();
     renderIdentity(user,sessions.historySource||(!window.ArbatTrainingSync?.historyEnabled&&provider?'remote':'local'));renderKpis(sessions);renderCalendar(days);renderChart('volumeChart',days,'volume');renderChart('averageChart',days,'average');renderSessions(sessions);
-    window.dispatchEvent(new CustomEvent('arbat:history-loaded',{detail:{sessions,user,range,signal,periodSignal:entry?.signal||signal,account:currentUser().id,role:state.verifiedRole}}));
+    window.dispatchEvent(new CustomEvent('arbat:history-loaded',{detail:{
+      sessions,user,range,signal,periodSignal:entry?.signal||signal,account:currentUser().id,
+      role:state.verifiedRole,actorId:entry?.metadataValue?.context?.actor?.id,
+      contacts:state.coaching?.athletes||[]
+    }}));
     if(entry&&!entry.observing){
       entry.observing=true;
       // Attach after painting the selected user. Metadata and prefetch never hold up that view.

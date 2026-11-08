@@ -108,3 +108,30 @@ test('network failure is retryable and does not leak credentials',async()=>{
  const handler=make(async()=>{throw new Error(secret);});
  const r=await result(await handler(request()));assert.deepEqual(r,{status:503,body:{error:'server_unavailable'}});
 });
+
+
+test('history saves the phone only from the verified Buddy profile for that subject',async()=>{
+ for(const [profileId,expected] of [['buddy-verified','+591 70000000'],['someone-else',undefined]]){
+  let saved;
+  const handler=make(async(url,init)=>{
+   if(url.endsWith('/auth/v1/user'))return auth();
+   if(url==='https://api.statetty.com/api/buddy/auth/session'){
+    return Response.json({ok:true,authenticated:true,user:{id:'buddy-verified',name:'Arquero',email:'test@example.test'}});
+   }
+   if(url==='https://api.statetty.com/api/buddy/user'){
+    assert.equal(init.method,'GET');
+    assert.equal(init.headers.Authorization,`Bearer ${buddy}`);
+    return Response.json({ok:true,user:{id:profileId,phone:'+591 70000000'}});
+   }
+   if(url.endsWith('/rpc/training_history_context')){
+    saved=JSON.parse(init.body);
+    return Response.json({status:'accepted',role:'user'});
+   }
+   assert.fail('Unexpected upstream request');
+  });
+  const response=await handler(request({schema_version:1,action:'history.context'},{'x-buddy-access-token':buddy}));
+  assert.equal(response.status,200);
+  assert.equal(saved.p_buddy_subject,'buddy-verified');
+  assert.equal(saved.p_profile_phone,expected);
+ }
+});

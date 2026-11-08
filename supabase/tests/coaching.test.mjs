@@ -8,7 +8,7 @@ test('academy coaching is opt-in, scoped and available only through server RPCs'
  await db.exec(`create role anon nologin;create role authenticated nologin;create role service_role nologin bypassrls;
  create schema auth;create table auth.users(id uuid primary key,is_anonymous boolean not null);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;`);
- for(const f of (await readdir(new URL('../migrations/',import.meta.url))).filter(f=>f.endsWith('.sql')&&!f.startsWith('202611020006')&&!f.startsWith('202611080013')).sort())await db.exec(await readFile(new URL('../migrations/'+f,import.meta.url),'utf8'));
+ for(const f of (await readdir(new URL('../migrations/',import.meta.url))).filter(f=>f.endsWith('.sql')&&!f.startsWith('202611020006')&&!f.startsWith('202611080013')&&!f.startsWith('202611080014')).sort())await db.exec(await readFile(new URL('../migrations/'+f,import.meta.url),'utf8'));
  const upgrade=await readFile(new URL('../setup/actualizar-historial-entrenadores.sql',import.meta.url),'utf8');
  await db.exec(upgrade);await db.exec(upgrade);
  const school='a8ba7000-0000-4000-8000-000000000001';
