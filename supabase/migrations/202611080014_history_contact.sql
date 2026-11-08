@@ -1,5 +1,5 @@
 -- Buddy contact data is private. Cross-account contact visibility follows the
--- existing administrative email scope; the roster still checks every athlete.
+-- administrative scope and the coach's active assignments.
 begin;
 alter table arbat_private.external_identities add column if not exists profile_phone text
  check (profile_phone is null or (char_length(profile_phone)<=32 and profile_phone ~ '^[+0-9(). -]+$'));
@@ -27,7 +27,7 @@ grant execute on function public.training_history_context(uuid,text,text,text,te
 create or replace function public.training_coach_overview(p_principal uuid,p_buddy_subject text,p_from date,p_to date,p_after uuid default null,p_scope_hash text default null)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
- v_actor uuid;v_role text;v_ids uuid[];v_hash text;
+ v_actor uuid;v_role text;v_ids uuid[];v_contact_ids uuid[]:='{}';v_hash text;
  v_days jsonb;v_total bigint;v_roster jsonb;v_count integer;v_cursor uuid;v_version text;
 begin
  if p_buddy_subject is null then raise exception 'buddy_required' using errcode='28000';end if;
@@ -36,7 +36,15 @@ begin
  if v_role='user' then raise exception 'coach_required' using errcode='42501';end if;
  if not arbat_private.ingress_allow(v_actor) then return jsonb_build_object('status','rate_limited');end if;
  select coalesce(array_agg(c.id order by c.id),'{}'::uuid[]) into v_ids from arbat_private.training_coach_ids(v_actor) c;
- v_hash:=md5(v_role||v_ids::text);
+ if v_role='coach' then
+  select coalesce(array_agg(distinct c.athlete_id order by c.athlete_id),'{}'::uuid[])
+   into v_contact_ids
+   from arbat_private.coach_athletes c
+   join arbat_private.role_assignments r on r.user_id=c.coach_id and r.school_id=c.school_id and r.role='coach'
+   where c.coach_id=v_actor and c.active and c.athlete_id=any(v_ids);
+ end if;
+ -- Contact revocation must invalidate the cached roster even for academy-wide coaches.
+ v_hash:=md5(v_role||v_ids::text||v_contact_ids::text);
  if p_scope_hash is not null and p_scope_hash<>v_hash then return jsonb_build_object('status','changed');end if;
 
  with roster_ids as (
@@ -74,10 +82,14 @@ begin
   from activity a join latest l on l.owner_id=a.owner_id and l.activity_date=a.activity_date group by a.owner_id
  ), roster as (
   select p.id,coalesce(nullif(p.display_name,''),'Arquero '||right(p.id::text,8)) name,identity.subject,
-   case when v_role in ('superadmin','admin') then identity.verified_email end email,
-   case when v_role in ('superadmin','admin') then identity.profile_phone end phone,
+   access.can_view_contact,
+   case when access.can_view_contact then identity.verified_email end email,
+   case when access.can_view_contact then identity.profile_phone end phone,
    l.started last_session_at,l.activity_date last_session_date,coalesce(t.arrows,0) day_arrows,t.points day_points,t.average day_average
   from roster_ids p
+  cross join lateral (
+   select v_role in ('superadmin','admin') or p.id=any(v_contact_ids) as can_view_contact
+  ) access
   left join lateral(select e.subject,e.verified_email,e.profile_phone from arbat_private.external_identities e where e.user_id=p.id and e.issuer='https://api.statetty.com' order by e.subject limit 1) identity on true
   left join latest l on l.owner_id=p.id left join totals t on t.owner_id=p.id
  )

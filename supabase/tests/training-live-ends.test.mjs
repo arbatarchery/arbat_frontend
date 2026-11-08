@@ -44,11 +44,23 @@ test('supervisors see completed ends in the selected period while the session is
  for(const [index,n] of [1,3,4].entries()){
   const result=await overview(n),row=result.athletes.find(a=>a.id===id(2));
   assert.equal(result.arrows,1);assert.equal(row.day_points,8);assert.equal(row.day_average,8);
-  assert.equal(row.email,n===1?null:contact[1]);
-  assert.equal(row.phone,n===1?null:contact[2]);
+  assert.equal(row.can_view_contact,true);
+  assert.equal(row.email,contact[1]);
+  assert.equal(row.phone,contact[2]);
   assert.equal(row.last_session_date,today);assert.notEqual(result.activity_version,versions[index]);
   assert.equal((await overview(n,yesterday)).athletes.find(a=>a.id===id(2)).last_session_date,null);
  }
+ // An academy coach still sees activity after an assignment is revoked,
+ // but the contact is redacted and the previous roster cache is invalidated.
+ await db.query("update arbat_private.role_assignments set coach_scope='academy' where user_id=$1",[id(1)]);
+ const assigned=await overview(1);
+ await db.query('update arbat_private.coach_athletes set active=false where coach_id=$1 and athlete_id=$2',[id(1),id(2)]);
+ const unassigned=await overview(1),redacted=unassigned.athletes.find(a=>a.id===id(2));
+ assert.equal(redacted.day_points,8);
+ assert.equal(redacted.can_view_contact,false);
+ assert.equal(redacted.email,null);assert.equal(redacted.phone,null);
+ assert.notEqual(unassigned.scope_hash,assigned.scope_hash);
+ assert.equal((await overview(3)).athletes.find(a=>a.id===id(2)).phone,contact[2]);
  assert.equal((await db.query('select ended_at from public.training_sessions where id=$1',[session])).rows[0].ended_at,null);
  await assert.rejects(overview(5),{code:'42501'});
  // A session started yesterday can still contribute a completed end today.

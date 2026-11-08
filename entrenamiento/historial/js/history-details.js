@@ -37,7 +37,7 @@
   const name=session.owner?.name||(loaded.user?.allAthletes?'Arquero':loaded.user?.name)||'Arquero';
   const cell=document.createElement('td'),label=text('span',name);
   const fields=[`Nombre: ${name}`];
-  if(own||['admin','superadmin'].includes(loaded.role)){
+  if(own||profile?.can_view_contact===true||['admin','superadmin'].includes(loaded.role)){
    fields.push(`Correo electrónico: ${profile?.email||'No disponible'}`,`Teléfono: ${profile?.phone||'No disponible'}`);
   }
   label.title=fields.join('\n');
