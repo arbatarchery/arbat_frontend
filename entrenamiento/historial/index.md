@@ -15,7 +15,7 @@ scripts:
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=5"
-  - "/entrenamiento/js/sync-history.js?v=9"
+  - "/entrenamiento/js/sync-history.js?v=10"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-usage.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=9"
@@ -23,12 +23,12 @@ scripts:
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
   - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
-  - "/entrenamiento/historial/js/history-details.js?v=9"
+  - "/entrenamiento/historial/js/history-details.js?v=10"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/capacity-notice.js?v=1"
   - "/entrenamiento/historial/js/system-status.js?v=5"
   - "/entrenamiento/historial/js/history-period-cache.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=25"
+  - "/entrenamiento/historial/js/historial.js?v=26"
 ---
 
 <div class="training-history" id="trainingHistory">
@@ -80,10 +80,10 @@ scripts:
     <p id="coachScope"></p>
     <p id="coachMessage" role="status"></p>
     <div id="coachData" hidden>
-      <article class="coach-total"><span>Flechas registradas por los arqueros en el período</span><strong id="coachArrows">—</strong><small>Según la fecha de cada flecha de los arqueros supervisados.</small></article>
+      <article class="coach-total"><span>Flechas registradas por los arqueros en el período</span><strong id="coachArrows">—</strong><small>Según la fecha de registro de cada flecha confirmada.</small></article>
       <h3>Arqueros supervisados</h3>
-      <p>Las últimas sesiones y sus totales diarios se muestran aunque estén fuera del período seleccionado.</p>
-      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col" aria-sort="none"><button type="button" data-coach-sort="name" data-label="Arquero">Arquero ↕</button></th><th scope="col" aria-sort="descending"><button type="button" data-coach-sort="date" data-label="Inicio de la última sesión">Inicio de la última sesión ↓</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="arrows" data-label="Flechas de ese día">Flechas de ese día ↕</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="average" data-label="Promedio del día">Promedio del día ↕</button></th></tr></thead><tbody id="coachRoster"></tbody></table></div>
+      <p>Se muestra el último día con actividad de cada arquero dentro del período. Los puntajes se actualizan al sincronizarse una andanada terminada.</p>
+      <div class="coach-table-scroll"><table class="coach-table"><thead><tr><th scope="col" aria-sort="none"><button type="button" data-coach-sort="name" data-label="Arquero">Arquero ↕</button></th><th scope="col" aria-sort="descending"><button type="button" data-coach-sort="date" data-label="Inicio de la última sesión">Inicio de la última sesión ↓</button></th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="arrows" data-label="Flechas de ese día">Flechas de ese día ↕</button></th><th scope="col">Puntos de ese día</th><th scope="col" aria-sort="none"><button type="button" data-coach-sort="average" data-label="Promedio del día">Promedio del día ↕</button></th></tr></thead><tbody id="coachRoster"></tbody></table></div>
     </div>
   </details>
 

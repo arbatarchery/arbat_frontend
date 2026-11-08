@@ -15,14 +15,14 @@ scripts:
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=6"
   - "/entrenamiento/js/sync-identity.js?v=5"
-  - "/entrenamiento/js/sync-history.js?v=9"
+  - "/entrenamiento/js/sync-history.js?v=10"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-usage.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=9"
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/js/sync-ui.js?v=6"
-  - "/entrenamiento/js/entrenamiento.js?v=16"
+  - "/entrenamiento/js/entrenamiento.js?v=17"
 ---
 
 <div class="app-entrenamiento">

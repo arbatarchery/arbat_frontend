@@ -18,7 +18,7 @@
  function desktop(){const open=desktopScreen.matches;for(const id of ['historyCharts','historyDetails'])$(id).open=open;}
  function ends(session){
   const rows=(session.completed||[]).map((end,index)=>({...end,ordinal:index+1}));
-  if(session.current?.length)rows.push({arrows:session.current,ordinal:rows.length+1,inProgress:true});
+  if(session.current?.length)rows.push({arrows:session.current,ordinal:rows.length+1,inProgress:!session.endedAt,endedAt:session.current.at(-1)?.recordedAt});
   // Older snapshots sometimes contain only a flat arrow collection.
   if(!rows.length&&session.arrows?.length)rows.push({arrows:session.arrows,ordinal:1});
   return rows.map(end=>({...end,sessionType:end.sessionType||session.sessionType||'training',shootingDistance:end.shootingDistance||session.shootingDistance||'',targetSize:end.targetSize||session.targetSize||''}));
