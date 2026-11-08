@@ -20,8 +20,8 @@
    this.wake=()=>this.schedule(0);this.visible=()=>{if(!globalThis.document||globalThis.document.visibilityState==='visible')this.schedule(0);};
   }
   async emit(state,error=null){const status=await this.store.status();const value={...status,state,error,claim:this.claimConfirmation};this.onState(value);return value;}
-  start(){if(!this.enabled)return;for(const event of ['online','buddy:auth-state-changed','buddy:auth-ready'])this.events?.addEventListener?.(event,this.wake);this.events?.addEventListener?.('visibilitychange',this.visible);this.schedule(0);}
-  stop(){this.stopped=true;if(this.timer!==null)this.clearTimer(this.timer);this.timer=null;for(const event of ['online','buddy:auth-state-changed','buddy:auth-ready'])this.events?.removeEventListener?.(event,this.wake);this.events?.removeEventListener?.('visibilitychange',this.visible);}
+  start(){if(!this.enabled)return;for(const event of ['online','buddy:auth-state-changed','buddy:auth-ready','buddy:user-loaded'])this.events?.addEventListener?.(event,this.wake);this.events?.addEventListener?.('visibilitychange',this.visible);this.schedule(0);}
+  stop(){this.stopped=true;if(this.timer!==null)this.clearTimer(this.timer);this.timer=null;for(const event of ['online','buddy:auth-state-changed','buddy:auth-ready','buddy:user-loaded'])this.events?.removeEventListener?.(event,this.wake);this.events?.removeEventListener?.('visibilitychange',this.visible);}
   schedule(delay=0){if(!this.enabled||this.stopped)return;if(this.timer!==null)this.clearTimer(this.timer);this.timer=this.setTimer(()=>{this.timer=null;this.flush().catch(()=>{this.onState({state:'error',error:'local_storage_unavailable'});});},Math.max(0,delay));}
   async identity(){const value=await this.identityProvider();if(!value||!UUID.test(value.principalId||'')||(!value.supabaseToken&&!(value.buddyVerified&&value.accountKey&&value.buddyToken))||value.accountKey&&!value.buddyToken)return null;
    return {...value,accountKey:value.accountKey?String(value.accountKey):null};}

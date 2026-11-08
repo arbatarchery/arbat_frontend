@@ -47,12 +47,24 @@
    const [records,ops]=await Promise.all([this.store.readAll('sessions'),this.store.readAll('operations')]);
    const pending=new Set(ops.filter(o=>o.state!=='blocked'&&o.nextAttemptAt<=this.now()).map(o=>o.sessionKey));
    const eligible=records.filter(r=>pending.has(r.key)&&!r.issue&&(!r.accountKey||r.accountKey===accountKey)).sort((a,b)=>a.priority-b.priority||a.capturedAt-b.capturedAt);
+   // A completed upload clears the queue, but the guest principal still owns
+   // those sessions until a verified Buddy login claims it.
+   const unclaimedPrincipals=new Set(records
+    .filter(record=>!record.accountKey&&!record.issue&&record.confirmedRevision>0)
+    .map(record=>record.principalId));
    let selected;
    const registry=await this.store.changeMeta(this.registryKey,current=>{
     const value=current||{buckets:[],guest:null};
     const usable=b=>b.accountKey===accountKey||b.accountKey===null;
+    if(accountKey)selected=value.buckets.find(bucket=>bucket.principalId&&usable(bucket)&&unclaimedPrincipals.has(bucket.principalId));
     // Preserve the original Supabase principal for queued envelopes and receipts.
-    for(const record of eligible){if(record.principalId){selected=value.buckets.find(b=>b.principalId===record.principalId&&usable(b));if(selected)break;}}
+    if(!selected){
+     for(const record of eligible){
+      if(!record.principalId)continue;
+      selected=value.buckets.find(bucket=>bucket.principalId===record.principalId&&usable(bucket));
+      if(selected)break;
+     }
+    }
     if(!selected)selected=value.buckets.find(b=>b.accountKey===accountKey&&b.principalId);
     const create=eligible.some(r=>!r.principalId)||(forHistory&&accountKey);
     if(!selected&&create)selected=value.buckets.find(b=>b.key===value.guest&&b.accountKey===null);

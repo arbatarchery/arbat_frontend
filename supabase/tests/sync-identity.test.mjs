@@ -1,6 +1,6 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';
 import {IDBFactory} from 'fake-indexeddb';import {GoTrueClient} from '@supabase/auth-js';
-const require=createRequire(import.meta.url),{Store}=require('../../entrenamiento/js/sync-store.js'),{Identity}=require('../../entrenamiento/js/sync-identity.js'),{present}=require('../../entrenamiento/js/sync-ui.js');
+const require=createRequire(import.meta.url),{Store}=require('../../entrenamiento/js/sync-store.js'),{Engine}=require('../../entrenamiento/js/sync-engine.js'),{Identity}=require('../../entrenamiento/js/sync-identity.js'),{present}=require('../../entrenamiento/js/sync-ui.js');
 const P='70000000-0000-4000-8000-000000000001',Q='70000000-0000-4000-8000-000000000002';
 const snapshot=id=>({id,date:'2026-11-01',completed:[],current:[{label:'9',score:9,x:54,y:50}],owner:{id:'anon:device',anonymous:true}});
 const setup=()=>new Store({indexedDB:new IDBFactory()});
@@ -102,4 +102,52 @@ test('a concurrent history request without an account terminates without creatin
  const store=setup();t.after(()=>store.close());const no=()=>assert.fail('no credentials for an empty signed-out device');
  const identity=new Identity({...config,store,sdkLoader:no,captchaProvider:no,fetchImpl:no});
  assert.deepEqual(await Promise.all([identity.identity(),identity.identity({forHistory:true})]),[null,null]);
+});
+
+
+test('a later Buddy login claims archived guest sessions even after every upload was acknowledged',async t=>{
+ const store=setup();t.after(()=>store.close());
+ let now=Date.parse('2026-11-01T18:00:00Z'),buddy={accountKey:null,buddyToken:null};
+ const sessions=new Map(),claims=[],uploads=[];
+ class Client{
+  constructor(options){this.key=options.storageKey;}
+  async getSession(){return {data:{session:sessions.get(this.key)}};}
+  async signInAnonymously(){
+   const session={user:{id:P},access_token:'guest-access'};
+   sessions.set(this.key,session);return {data:{session}};
+  }
+ }
+ const options={...config,store,now:()=>now,getBuddy:()=>buddy,sdkLoader:async()=>({GoTrueClient:Client}),
+  captchaProvider:async()=>'captcha',fetchImpl:async()=>Response.json({status:'accepted',principal_id:Q,subject:'buddy-A'})};
+ // An existing Buddy account already has a separate principal on this browser.
+ buddy={accountKey:'buddy-A',buddyToken:'buddy-access'};
+ assert.equal((await new Identity(options).identity({forHistory:true})).principalId,Q);
+ buddy={accountKey:null,buddyToken:null};
+ for(const date of ['2026-10-20','2026-11-01']){
+  const {current,...record}=snapshot('guest-'+date);
+  await store.capture({...record,date,completed:[{arrows:current}],current:[],endedAt:date+'T17:00:00Z'},{source:'history'});
+ }
+ const named=await store.capture({...snapshot('other-owner'),owner:{id:'buddy-B',anonymous:false}});
+ const engineFor=()=> {
+  const identity=new Identity(options);
+  return new Engine({store,enabled:true,now:()=>now,navigator:{onLine:true},
+   identityProvider:()=>identity.identity(),setTimer:()=>1,clearTimer:()=>{},
+   transport:{
+    claim:async id=>{claims.push(id);return {status:'accepted',owner_id:Q,sessions_claimed:2,replayed:false};},
+    send:async(op,id)=>{uploads.push(id);return {results:[{operation_id:op.operation_id,status:'accepted',revision:op.base_revision+1}]};}
+   }});
+ };
+ await engineFor().flush();
+ assert.ok(uploads.length>0&&uploads.every(id=>id.principalId===P&&id.accountKey===null));
+ const operationCount=uploads.length;
+ assert.ok((await store.readAll('operations')).every(op=>op.sessionKey===named.key));
+ now+=9*24*60*60*1000;
+ buddy={accountKey:'buddy-A',buddyToken:'buddy-access'};
+ const login=engineFor();
+ await login.flush();await login.flush();
+ assert.deepEqual(claims.map(id=>[id.principalId,id.accountKey,id.supabaseToken]),[[P,'buddy-A','guest-access']]);
+ assert.equal(uploads.length,operationCount);
+ const rows=await store.readAll('sessions');
+ assert.equal(rows.filter(row=>row.accountKey==='buddy-A'&&row.snapshot.endedAt).length,2);
+ assert.equal(rows.find(row=>row.key===named.key).accountKey,'buddy-B');
 });
