@@ -129,6 +129,33 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
         if(typeof user?.id!=='string'||!UUID.test(user.id)) throw new HttpError(401,'supabase_session_unverified');
         identity=buddyToken?await verifyBuddyAccessToken(buddyToken,{fetchImpl,timeoutMs,includeProfile:true}):null;
       }
+      const historyContext=async()=>{
+        const args={p_principal:user.id,p_buddy_subject:identity?.subject??null,
+          p_display_name:identity?.displayName??null,p_verified_email:identity?.verifiedEmail??null};
+        if(identity&&buddyToken){
+          try{
+            const profileTimeout=Math.min(timeoutMs,1500);
+            const response=await fetchImpl('https://api.statetty.com/api/buddy/user',{
+              method:'GET',headers:{Authorization:`Bearer ${buddyToken}`,Accept:'application/json'},
+              cache:'no-store',redirect:'error',signal:AbortSignal.timeout(profileTimeout)
+            });
+            if(response.ok){
+              const data=await readJsonLimited(response.body,16384,profileTimeout);
+              const profile=data?.user??data?.data??data;
+              if((profile?.id??profile?._id)===identity.subject){
+                const field=['phone','telefono','mobile','celular','whatsapp'].find(key=>Object.hasOwn(profile,key));
+                if(field){
+                  const phone=String(profile[field]??'').trim();
+                  if(!phone||(/^[+0-9(). -]{1,32}$/.test(phone)&&phone.replace(/[^0-9]/g,'').length>=5)){
+                    args.p_profile_phone=phone||null;
+                  }
+                }
+              }
+            }
+          }catch{} // Unavailable profiles must not block history or erase stored contacts.
+        }
+        return rpc('training_history_context',args);
+      };
       if(usageEvent){const result=await rpc('training_record_usage',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_event:usageEvent,p_rate_key:location.rate_key});return reply(result.status==='rate_limited'?429:200,result);}
       if(body.action==='usage.summary'){const result=await rpc('training_usage_summary',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_from:body.from,p_to:body.to},1048576);return reply(result.status==='rate_limited'?429:200,result);}
       if(body.action==='system.status'){const result=await rpc('training_system_status',{p_principal:user.id,p_buddy_subject:identity?.subject??null});if(result.status==='rate_limited')return reply(429,result);if(!['admin','superadmin'].includes(result.role))throw new HttpError(403,'not_owner');const platform=await management.status();return reply(200,{...result,plan:platform.plan||null,reference_database_bytes:null,management:platform});}
@@ -139,7 +166,7 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
       if(body.action==='claim'&&!identity) throw new HttpError(401,'buddy_session_required');
       if(body.action.startsWith('history.')){
         if(body.action==='history.context'){
-          const result=await rpc('training_history_context',{p_principal:user.id,p_buddy_subject:identity?.subject??null,p_display_name:identity?.displayName??null,p_verified_email:identity?.verifiedEmail??null});
+          const result=await historyContext();
           if(result.status==='accepted')return reply(200,{...result,...await management.capacity()});
           return reply(result.status==='rate_limited'?429:200,result);
         }
@@ -162,7 +189,7 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
         const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(proof))),b=>b.toString(16).padStart(2,'0')).join('');
         const result=await rpc('training_claim',{p_principal:user.id,p_buddy_subject:identity.subject,p_proof_hash:hash});
         // Metadata registration must never discard a committed claim receipt.
-        if(result.status==='accepted')try{await rpc('training_history_context',{p_principal:user.id,p_buddy_subject:identity.subject,p_display_name:identity.displayName??null,p_verified_email:identity.verifiedEmail??null});}catch{}
+        if(result.status==='accepted')try{await historyContext();}catch{}
         return reply(result.status==='rate_limited'?429:200,result,result.status==='rate_limited'?{'Retry-After':'60'}:{});
       }
       if(body.operations.length>1){

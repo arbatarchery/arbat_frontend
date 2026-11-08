@@ -23,12 +23,12 @@ scripts:
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
   - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
-  - "/entrenamiento/historial/js/history-details.js?v=10"
+  - "/entrenamiento/historial/js/history-details.js?v=12"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/capacity-notice.js?v=1"
   - "/entrenamiento/historial/js/system-status.js?v=5"
   - "/entrenamiento/historial/js/history-period-cache.js?v=1"
-  - "/entrenamiento/historial/js/historial.js?v=26"
+  - "/entrenamiento/historial/js/historial.js?v=27"
 ---
 
 <div class="training-history" id="trainingHistory">

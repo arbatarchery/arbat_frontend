@@ -3,13 +3,13 @@
 // Generado desde fuentes revisables; no editar a mano. Sin secretos incluidos.
 // Desactivado por defecto: no configurar TRAINING_SYNC_ENABLED=true todavia.
 // functions/training-sync/index.ts: 929d4a713491b1fac92a7a46d4d57aaa81efd271d00a8da3fae268d6d5837628
-// functions/_shared/training-handler.mjs: f09fb4ff1f8b582be4246fbf0f6380f77556aebaa1dcbcc5659151d07f5855c7
+// functions/_shared/training-handler.mjs: a15ea538084fb04825aa13ebd12b1b0441b470b39eeeb999abb3a56bf88ce493
 // functions/_shared/buddy-identity.mjs: 6bd873ddb4e20fca1ae33d80327932b8ed7b9fc78819d2db7756072b8e6cce86
 // functions/_shared/buddy-principal.mjs: 609259968e489ab62bb565deb2705b5d8798abf83a9e536ff6cd0caf2879cfba
 // functions/_shared/location-proof.mjs: eca51fc43af0fe9224c42395cb06bb82965c3e0fd7798e463c26f8458c3aa72f
 // functions/_shared/management-status.mjs: 397c75262dc103503d37d1e26ab6832f8492a44d2fbda7c86a38fe3ebaf95c10
 
-// supabase/functions/_shared/management-status.mjs
+// functions/_shared/management-status.mjs
 var API = "https://api.supabase.com/v1";
 var SERVICES = ["auth", "db", "rest", "storage", "realtime"];
 var PROJECT_STATES = /* @__PURE__ */ new Set(["INACTIVE", "ACTIVE_HEALTHY", "ACTIVE_UNHEALTHY", "COMING_UP", "UNKNOWN", "GOING_DOWN", "INIT_FAILED", "REMOVED", "RESTORING", "UPGRADING", "PAUSING", "RESTORE_FAILED", "RESTARTING", "PAUSE_FAILED", "RESIZING", "PROMOTING"]);
@@ -112,7 +112,7 @@ function createManagementStatus({ token, projectRef, fetchImpl = globalThis.fetc
   return { status, capacity };
 }
 
-// supabase/functions/_shared/location-proof.mjs
+// functions/_shared/location-proof.mjs
 var USAGE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var encoder = new TextEncoder();
 var decode = (value) => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
@@ -136,7 +136,7 @@ async function verifyLocation(proof, secret, now = Date.now()) {
   }
 }
 
-// supabase/functions/_shared/buddy-principal.mjs
+// functions/_shared/buddy-principal.mjs
 async function resolveBuddyPrincipal(subject, { url, serverKey, fetchImpl, readJson, timeoutMs = 5e3 }) {
   const headers = { apikey: serverKey, "Content-Type": "application/json" };
   if (serverKey.startsWith("eyJ")) headers.Authorization = `Bearer ${serverKey}`;
@@ -170,7 +170,7 @@ async function resolveBuddyPrincipal(subject, { url, serverKey, fetchImpl, readJ
   throw new Error("buddy_bridge_unavailable");
 }
 
-// supabase/functions/_shared/buddy-identity.mjs
+// functions/_shared/buddy-identity.mjs
 var SESSION_URL = "https://api.statetty.com/api/buddy/auth/session";
 var MAX_RESPONSE_BYTES = 16384;
 var BuddyIdentityError = class extends Error {
@@ -232,7 +232,7 @@ async function verifyBuddyAccessToken(token, { fetchImpl = globalThis.fetch, tim
   }
 }
 
-// supabase/functions/_shared/training-handler.mjs
+// functions/_shared/training-handler.mjs
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var TOKEN = /^[A-Za-z0-9._~-]+$/;
 var KINDS = /* @__PURE__ */ new Set(["session.upsert", "session.close", "end.upsert", "arrow.upsert", "arrow.delete"]);
@@ -395,6 +395,41 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
         if (typeof user?.id !== "string" || !UUID.test(user.id)) throw new HttpError(401, "supabase_session_unverified");
         identity = buddyToken ? await verifyBuddyAccessToken(buddyToken, { fetchImpl, timeoutMs, includeProfile: true }) : null;
       }
+      const historyContext = async () => {
+        const args = {
+          p_principal: user.id,
+          p_buddy_subject: identity?.subject ?? null,
+          p_display_name: identity?.displayName ?? null,
+          p_verified_email: identity?.verifiedEmail ?? null
+        };
+        if (identity && buddyToken) {
+          try {
+            const profileTimeout = Math.min(timeoutMs, 1500);
+            const response = await fetchImpl("https://api.statetty.com/api/buddy/user", {
+              method: "GET",
+              headers: { Authorization: `Bearer ${buddyToken}`, Accept: "application/json" },
+              cache: "no-store",
+              redirect: "error",
+              signal: AbortSignal.timeout(profileTimeout)
+            });
+            if (response.ok) {
+              const data = await readJsonLimited(response.body, 16384, profileTimeout);
+              const profile = data?.user ?? data?.data ?? data;
+              if ((profile?.id ?? profile?._id) === identity.subject) {
+                const field = ["phone", "telefono", "mobile", "celular", "whatsapp"].find((key2) => Object.hasOwn(profile, key2));
+                if (field) {
+                  const phone = String(profile[field] ?? "").trim();
+                  if (!phone || /^[+0-9(). -]{1,32}$/.test(phone) && phone.replace(/[^0-9]/g, "").length >= 5) {
+                    args.p_profile_phone = phone || null;
+                  }
+                }
+              }
+            }
+          } catch {
+          }
+        }
+        return rpc("training_history_context", args);
+      };
       if (usageEvent) {
         const result = await rpc("training_record_usage", { p_principal: user.id, p_buddy_subject: identity?.subject ?? null, p_event: usageEvent, p_rate_key: location.rate_key });
         return reply(result.status === "rate_limited" ? 429 : 200, result);
@@ -417,7 +452,7 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
       if (body.action === "claim" && !identity) throw new HttpError(401, "buddy_session_required");
       if (body.action.startsWith("history.")) {
         if (body.action === "history.context") {
-          const result2 = await rpc("training_history_context", { p_principal: user.id, p_buddy_subject: identity?.subject ?? null, p_display_name: identity?.displayName ?? null, p_verified_email: identity?.verifiedEmail ?? null });
+          const result2 = await historyContext();
           if (result2.status === "accepted") return reply(200, { ...result2, ...await management.capacity() });
           return reply(result2.status === "rate_limited" ? 429 : 200, result2);
         }
@@ -434,7 +469,7 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
         const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(proof))), (b) => b.toString(16).padStart(2, "0")).join("");
         const result = await rpc("training_claim", { p_principal: user.id, p_buddy_subject: identity.subject, p_proof_hash: hash });
         if (result.status === "accepted") try {
-          await rpc("training_history_context", { p_principal: user.id, p_buddy_subject: identity.subject, p_display_name: identity.displayName ?? null, p_verified_email: identity.verifiedEmail ?? null });
+          await historyContext();
         } catch {
         }
         return reply(result.status === "rate_limited" ? 429 : 200, result, result.status === "rate_limited" ? { "Retry-After": "60" } : {});
@@ -470,7 +505,7 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
   };
 }
 
-// supabase/functions/training-sync/index.ts
+// functions/training-sync/index.ts
 Deno.serve(createTrainingHandler({
   url: Deno.env.get("SUPABASE_URL"),
   managementToken: Deno.env.get("TRAINING_MANAGEMENT_TOKEN"),
