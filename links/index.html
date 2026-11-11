@@ -1,0 +1,26 @@
+---
+layout: links
+title: Enlaces
+description: Contactá a arbat, accedé a Entrenamiento y encontrá la escuela en Google Maps.
+permalink: /links/
+estilos:
+  - /assets/css/links.css
+---
+<h1 class="links-page__brand">
+  <a href="{{ '/' | relative_url }}" aria-label="{{ site.arbat.nombre }} · Inicio">
+    <img src="{{ '/assets/images/logo.png' | relative_url }}" width="72" height="72" alt="">
+    {{ site.arbat.nombre }}
+  </a>
+</h1>
+<p class="links-page__motto" lang="la">{{ site.arbat.lema }}.</p>
+
+<nav aria-label="Enlaces de arbat">
+  <ul class="links-page__actions">
+    <li>{% include whatsapp-cta.html texto="WhatsApp" %}</li>
+    <li><a href="{{ '/entrenamiento/' | relative_url }}">Entrenamiento</a></li>
+    <li><a href="{{ site.arbat.google_maps_url | escape }}">Ubicación (Google Maps)</a></li>
+    <li><a href="{{ site.arbat.tiktok | escape }}">TikTok</a></li>
+    <li><a href="{{ site.arbat.instagram | escape }}">Instagram</a></li>
+    <li><a href="{{ site.arbat.facebook | escape }}">Facebook</a></li>
+  </ul>
+</nav>
