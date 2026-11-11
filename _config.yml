@@ -62,6 +62,8 @@ arbat:
   telefono_whatsapp_reservas: "+591 64533014"
   email: "info@arbatarchery.com"
   instagram: "https://www.instagram.com/arbat.archery"
+  tiktok: "https://www.tiktok.com/@arbat.archery"
+  facebook: "https://www.facebook.com/arbat.archery"
   horarios:
     - dias: "Lunes, miércoles y viernes"
       turnos: ["16:00", "18:00"]

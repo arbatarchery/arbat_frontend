@@ -1,0 +1,62 @@
+.links-page {
+  width: min(100%, 30rem);
+  margin-inline: auto;
+  padding: clamp(2rem, 8vh, 5rem) 1.25rem 2rem;
+  text-align: center;
+}
+
+.links-page .links-page__brand {
+  margin: 0 0 0.375rem;
+  font-size: 2rem;
+}
+
+.links-page__brand a {
+  display: inline-grid;
+  justify-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.links-page .links-page__motto {
+  margin-bottom: 1.75rem;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 600;
+}
+
+.links-page__actions {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0;
+  list-style: none;
+}
+
+.links-page__actions a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.links-page__actions a:not(.btn-primary):hover {
+  background: var(--piedra);
+  border-color: var(--grafito);
+}
+
+.links-page a:focus-visible {
+  outline: 2px solid var(--tinta);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .links-page__actions .btn-primary,
+  .links-page__actions .btn-primary:hover .ring-icon {
+    transition: none;
+    transform: none;
+  }
+}
