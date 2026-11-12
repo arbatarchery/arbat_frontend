@@ -6,6 +6,7 @@ import { verifyBuddyAccessToken, BuddyIdentityError } from './buddy-identity.mjs
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOKEN = /^[A-Za-z0-9._~-]+$/;
 const KINDS = new Set(['session.upsert','session.close','end.upsert','arrow.upsert','arrow.delete']);
+const LINKS_EVENTS = new Set(['open','whatsapp','training','maps','tiktok','instagram','facebook','home']);
 class HttpError extends Error {
   constructor(status, code) { super(code); this.status=status; this.code=code; }
 }
@@ -64,8 +65,8 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
       const bearer=request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9._~-]+)$/i)?.[1];
       if(!bearer || bearer.length>8192) throw new HttpError(401,'supabase_session_required');
       const body=await readJsonLimited(request.body,131072,timeoutMs);
-      if(!body || Array.isArray(body) || body.schema_version!==1 || !['sync','claim','history.list','history.all','history.detail','history.context','history.coach','buddy.session','usage.record','usage.summary','system.status'].includes(body.action)) throw new HttpError(400,'invalid_request');
-      const keys=body.action==='history.all'?['schema_version','action','from','to','cursor']:body.action==='usage.record'?['schema_version','action','event']:body.action==='usage.summary'?['schema_version','action','from','to']:body.action==='history.coach'?['schema_version','action','from','to','cursor','scope_hash']:body.action==='sync'?['schema_version','action','operations']:body.action==='history.list'?['schema_version','action','from','to','cursor','target_subject']:body.action==='history.detail'?['schema_version','action','session_id','revision','collection','cursor']:['schema_version','action'];
+      if(!body || Array.isArray(body) || body.schema_version!==1 || !['sync','claim','history.list','history.all','history.detail','history.context','history.coach','buddy.session','usage.record','usage.summary','links.record','system.status'].includes(body.action)) throw new HttpError(400,'invalid_request');
+      const keys=body.action==='history.all'?['schema_version','action','from','to','cursor']:['usage.record','links.record'].includes(body.action)?['schema_version','action','event']:body.action==='usage.summary'?['schema_version','action','from','to']:body.action==='history.coach'?['schema_version','action','from','to','cursor','scope_hash']:body.action==='sync'?['schema_version','action','operations']:body.action==='history.list'?['schema_version','action','from','to','cursor','target_subject']:body.action==='history.detail'?['schema_version','action','session_id','revision','collection','cursor']:['schema_version','action'];
       if(Object.keys(body).some(k=>!keys.includes(k))) throw new HttpError(400,'unknown_request_fields');
       if(body.action==='sync') {
         if(!Array.isArray(body.operations)||!body.operations.length||body.operations.length>32) throw new HttpError(400,'invalid_batch');
@@ -92,6 +93,14 @@ export function createTrainingHandler({url, publicKey, serverKey, allowedOrigins
         if(!['accepted','conflict','rate_limited','quota_exceeded','changed','gone','session_pending'].includes(result?.status)) throw new HttpError(503,'invalid_server_result');
         return result;
       };
+      if(body.action==='links.record'){
+        if(bearer!==publicKey)throw new HttpError(401,'public_key_required');
+        const event=body.event;
+        if(!event||Array.isArray(event)||typeof event!=='object'||Object.keys(event).some(key=>!['id','kind'].includes(key))
+          ||typeof event.id!=='string'||!UUID.test(event.id)||!LINKS_EVENTS.has(event.kind))throw new HttpError(400,'invalid_links_event');
+        const result=await rpc('training_record_links',{p_id:event.id,p_kind:event.kind});
+        return reply(result.status==='rate_limited'?429:200,result);
+      }
       let usageEvent=null,location=null;
       if(body.action==='usage.record'){
         const e=body.event;
