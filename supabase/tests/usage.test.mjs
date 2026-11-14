@@ -21,6 +21,20 @@ test('Worker signs event-bound city only; Edge verifies before anonymous ingress
  assert.equal((await send({...event,event_id:id(11)})).status,400);assert.equal(calls,1);
  assert.equal((await send({...event,city:'Forged'})).status,400);assert.equal(calls,1);
 });
+test('Links ingress accepts anonymous allowlisted events and rejects extra fields',async()=>{
+ const handler=createTrainingHandler({enabled:true,url:'https://db.test',publicKey:'public',serverKey:'server',allowedOrigins:['https://arbatarchery.com'],fetchImpl:async(url,init)=>{
+  assert.ok(url.endsWith('/rpc/training_record_links'));
+  assert.deepEqual(JSON.parse(init.body),{p_id:id(20),p_kind:'whatsapp'});
+  return Response.json({status:'accepted',event_id:id(20)});
+ }});
+ const send=(event,origin='https://arbatarchery.com')=>handler(new Request('https://edge.test',{method:'POST',
+  headers:{Origin:origin,'Content-Type':'application/json',Authorization:'Bearer public'},
+  body:JSON.stringify({schema_version:1,action:'links.record',event})}));
+ assert.equal((await send({id:id(20),kind:'whatsapp'})).status,200);
+ assert.equal((await send({id:id(20),kind:'unlisted'})).status,400);
+ assert.equal((await send({id:id(20),kind:'whatsapp',actor_id:id(1)})).status,400);
+ assert.equal((await send({id:id(20),kind:'whatsapp'},'https://other.test')).status,403);
+});
 test('usage RPCs enforce roles, idempotency, promotion, scope and end ownership',async t=>{
  const db=new PGlite();t.after(()=>db.close());
  await db.exec(`create role anon nologin;create role authenticated nologin;create role service_role nologin bypassrls;create schema auth;create table auth.users(id uuid primary key,is_anonymous boolean not null);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;`);
@@ -32,6 +46,14 @@ test('usage RPCs enforce roles, idempotency, promotion, scope and end ownership'
  const record=(p,subject,e=event)=>db.query('select public.training_record_usage($1,$2,$3,$4) result',[p,subject,e,'a'.repeat(43)]).then(r=>r.rows[0].result);
  const summary=(n=1)=>db.query('select public.training_usage_summary($1,$2,$3,$4) result',[id(n),'buddy-'+n,date,date]).then(r=>r.rows[0].result);
  assert.equal((await summary()).totals.opens,0);
+ assert.equal((await summary()).links.open,0);
+ for(const [n,kind] of [[501,'open'],[501,'open'],[502,'whatsapp'],[503,'home'],[504,'open']]){
+  await db.query('select public.training_record_links($1,$2)',[id(n),kind]);
+ }
+ await db.query("update arbat_private.links_events set received_at=now()-interval '2 days' where id=$1",[id(504)]);
+ assert.deepEqual((await summary()).links,{open:1,whatsapp:1,training:0,maps:0,tiktok:0,instagram:0,facebook:0,home:1});
+ const grants=await db.query("select has_function_privilege('anon','public.training_record_links(uuid,text)','execute') as write, has_function_privilege('authenticated','public.training_usage_summary(uuid,text,date,date)','execute') as read");
+ assert.deepEqual(grants.rows,[{write:false,read:false}]);
  await record(null,null);await record(null,null);let result=await summary();assert.equal(result.totals.opens,1);assert.equal(result.totals.anonymous_browsers,1);
  await record(id(2),'buddy-2');result=await summary();assert.equal(result.totals.accounts,1);assert.equal(result.totals.anonymous_browsers,0);assert.equal(result.visitors[0].opens,1);
  assert.ok(!Object.hasOwn(result.visitors[0],'owner'));assert.ok(!Object.hasOwn(result.visitors[0],'visitor'));
@@ -57,6 +79,8 @@ test('usage RPCs enforce roles, idempotency, promotion, scope and end ownership'
  await db.query("insert into arbat_private.schools(id,name) values($1,'Otra academia')",[otherSchool]);
  await db.query("update arbat_private.usage_events set school_id=$1 where id=$2",[otherSchool,id(104)]);
  assert.ok(!(await summary()).cities.some(c=>c.region===null));
+ await db.query("insert into arbat_private.role_assignments(user_id,role,school_id) values($1,'admin',$2)",[id(3),otherSchool]);
+ assert.ok(!Object.hasOwn(await summary(3),'links'));
 
  await db.query('insert into public.training_ends(id,session_id,ordinal) values($1,$2,2),($3,$2,3)',[id(302),id(300),id(303)]);
  await record(id(2),'buddy-2',{...end,event_id:id(102),end_id:id(302),city:'Cochabamba'});

@@ -3,13 +3,13 @@
 // Generado desde fuentes revisables; no editar a mano. Sin secretos incluidos.
 // Desactivado por defecto: no configurar TRAINING_SYNC_ENABLED=true todavia.
 // functions/training-sync/index.ts: 929d4a713491b1fac92a7a46d4d57aaa81efd271d00a8da3fae268d6d5837628
-// functions/_shared/training-handler.mjs: a15ea538084fb04825aa13ebd12b1b0441b470b39eeeb999abb3a56bf88ce493
+// functions/_shared/training-handler.mjs: a4a97fd93b803df763f23ed1c2ea240fd2121ce5fdf57e0f952665037508e673
 // functions/_shared/buddy-identity.mjs: 6bd873ddb4e20fca1ae33d80327932b8ed7b9fc78819d2db7756072b8e6cce86
 // functions/_shared/buddy-principal.mjs: 609259968e489ab62bb565deb2705b5d8798abf83a9e536ff6cd0caf2879cfba
 // functions/_shared/location-proof.mjs: eca51fc43af0fe9224c42395cb06bb82965c3e0fd7798e463c26f8458c3aa72f
 // functions/_shared/management-status.mjs: 397c75262dc103503d37d1e26ab6832f8492a44d2fbda7c86a38fe3ebaf95c10
 
-// functions/_shared/management-status.mjs
+// supabase/functions/_shared/management-status.mjs
 var API = "https://api.supabase.com/v1";
 var SERVICES = ["auth", "db", "rest", "storage", "realtime"];
 var PROJECT_STATES = /* @__PURE__ */ new Set(["INACTIVE", "ACTIVE_HEALTHY", "ACTIVE_UNHEALTHY", "COMING_UP", "UNKNOWN", "GOING_DOWN", "INIT_FAILED", "REMOVED", "RESTORING", "UPGRADING", "PAUSING", "RESTORE_FAILED", "RESTARTING", "PAUSE_FAILED", "RESIZING", "PROMOTING"]);
@@ -112,7 +112,7 @@ function createManagementStatus({ token, projectRef, fetchImpl = globalThis.fetc
   return { status, capacity };
 }
 
-// functions/_shared/location-proof.mjs
+// supabase/functions/_shared/location-proof.mjs
 var USAGE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var encoder = new TextEncoder();
 var decode = (value) => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
@@ -136,7 +136,7 @@ async function verifyLocation(proof, secret, now = Date.now()) {
   }
 }
 
-// functions/_shared/buddy-principal.mjs
+// supabase/functions/_shared/buddy-principal.mjs
 async function resolveBuddyPrincipal(subject, { url, serverKey, fetchImpl, readJson, timeoutMs = 5e3 }) {
   const headers = { apikey: serverKey, "Content-Type": "application/json" };
   if (serverKey.startsWith("eyJ")) headers.Authorization = `Bearer ${serverKey}`;
@@ -170,7 +170,7 @@ async function resolveBuddyPrincipal(subject, { url, serverKey, fetchImpl, readJ
   throw new Error("buddy_bridge_unavailable");
 }
 
-// functions/_shared/buddy-identity.mjs
+// supabase/functions/_shared/buddy-identity.mjs
 var SESSION_URL = "https://api.statetty.com/api/buddy/auth/session";
 var MAX_RESPONSE_BYTES = 16384;
 var BuddyIdentityError = class extends Error {
@@ -232,10 +232,11 @@ async function verifyBuddyAccessToken(token, { fetchImpl = globalThis.fetch, tim
   }
 }
 
-// functions/_shared/training-handler.mjs
+// supabase/functions/_shared/training-handler.mjs
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var TOKEN = /^[A-Za-z0-9._~-]+$/;
 var KINDS = /* @__PURE__ */ new Set(["session.upsert", "session.close", "end.upsert", "arrow.upsert", "arrow.delete"]);
+var LINKS_EVENTS = /* @__PURE__ */ new Set(["open", "whatsapp", "training", "maps", "tiktok", "instagram", "facebook", "home"]);
 var HttpError = class extends Error {
   constructor(status, code) {
     super(code);
@@ -310,8 +311,8 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
       const bearer = request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9._~-]+)$/i)?.[1];
       if (!bearer || bearer.length > 8192) throw new HttpError(401, "supabase_session_required");
       const body = await readJsonLimited(request.body, 131072, timeoutMs);
-      if (!body || Array.isArray(body) || body.schema_version !== 1 || !["sync", "claim", "history.list", "history.all", "history.detail", "history.context", "history.coach", "buddy.session", "usage.record", "usage.summary", "system.status"].includes(body.action)) throw new HttpError(400, "invalid_request");
-      const keys = body.action === "history.all" ? ["schema_version", "action", "from", "to", "cursor"] : body.action === "usage.record" ? ["schema_version", "action", "event"] : body.action === "usage.summary" ? ["schema_version", "action", "from", "to"] : body.action === "history.coach" ? ["schema_version", "action", "from", "to", "cursor", "scope_hash"] : body.action === "sync" ? ["schema_version", "action", "operations"] : body.action === "history.list" ? ["schema_version", "action", "from", "to", "cursor", "target_subject"] : body.action === "history.detail" ? ["schema_version", "action", "session_id", "revision", "collection", "cursor"] : ["schema_version", "action"];
+      if (!body || Array.isArray(body) || body.schema_version !== 1 || !["sync", "claim", "history.list", "history.all", "history.detail", "history.context", "history.coach", "buddy.session", "usage.record", "usage.summary", "links.record", "system.status"].includes(body.action)) throw new HttpError(400, "invalid_request");
+      const keys = body.action === "history.all" ? ["schema_version", "action", "from", "to", "cursor"] : ["usage.record", "links.record"].includes(body.action) ? ["schema_version", "action", "event"] : body.action === "usage.summary" ? ["schema_version", "action", "from", "to"] : body.action === "history.coach" ? ["schema_version", "action", "from", "to", "cursor", "scope_hash"] : body.action === "sync" ? ["schema_version", "action", "operations"] : body.action === "history.list" ? ["schema_version", "action", "from", "to", "cursor", "target_subject"] : body.action === "history.detail" ? ["schema_version", "action", "session_id", "revision", "collection", "cursor"] : ["schema_version", "action"];
       if (Object.keys(body).some((k) => !keys.includes(k))) throw new HttpError(400, "unknown_request_fields");
       if (body.action === "sync") {
         if (!Array.isArray(body.operations) || !body.operations.length || body.operations.length > 32) throw new HttpError(400, "invalid_batch");
@@ -344,6 +345,13 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
         if (!["accepted", "conflict", "rate_limited", "quota_exceeded", "changed", "gone", "session_pending"].includes(result?.status)) throw new HttpError(503, "invalid_server_result");
         return result;
       };
+      if (body.action === "links.record") {
+        if (bearer !== publicKey) throw new HttpError(401, "public_key_required");
+        const event = body.event;
+        if (!event || Array.isArray(event) || typeof event !== "object" || Object.keys(event).some((key2) => !["id", "kind"].includes(key2)) || typeof event.id !== "string" || !UUID.test(event.id) || !LINKS_EVENTS.has(event.kind)) throw new HttpError(400, "invalid_links_event");
+        const result = await rpc("training_record_links", { p_id: event.id, p_kind: event.kind });
+        return reply(result.status === "rate_limited" ? 429 : 200, result);
+      }
       let usageEvent = null, location = null;
       if (body.action === "usage.record") {
         const e = body.event;
@@ -505,7 +513,7 @@ function createTrainingHandler({ url, publicKey, serverKey, allowedOrigins = [],
   };
 }
 
-// functions/training-sync/index.ts
+// supabase/functions/training-sync/index.ts
 Deno.serve(createTrainingHandler({
   url: Deno.env.get("SUPABASE_URL"),
   managementToken: Deno.env.get("TRAINING_MANAGEMENT_TOKEN"),

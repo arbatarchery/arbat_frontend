@@ -90,6 +90,15 @@
    const report=await usageCache.promise;if(token!==sequence||!signed())return;
    const data=$('usageData'),n=report.totals;
    $('usageMessage').textContent=`${number(n.opens)} aperturas · ${number(n.accounts)} cuentas · ${number(n.anonymous_browsers)} navegadores anónimos · ${number(n.cities)} ciudades · ${number(n.countries)} países.`;
+   if(report.links){
+    data.append(text('h3','Página de enlaces (/links)'),text('p',`${number(report.links.open)} aperturas en el período seleccionado.`));
+    const clicks=table(['Enlace','Clics']);
+    for(const [key,label] of [['whatsapp','WhatsApp'],['training','Entrenamiento'],['maps','Ubicación (Google Maps)'],
+      ['tiktok','TikTok'],['instagram','Instagram'],['facebook','Facebook'],['home','Inicio (logo)']]){
+     const row=document.createElement('tr');row.append(text('td',label),text('td',number(report.links[key])));clicks.body.append(row);
+    }
+    data.append(clicks.node);
+   }
    data.append(text('h3','Ciudades observadas'));const cities=table(['Ciudad','Región / país','Usuarios','Aperturas','Andanadas','Última observación']);
    report.cities.forEach(c=>{
     const row=document.createElement('tr');row.append(text('td',c.city),text('td',[c.region,c.country].filter(Boolean).join(' / ')));
