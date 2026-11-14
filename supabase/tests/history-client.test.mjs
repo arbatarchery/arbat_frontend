@@ -124,3 +124,33 @@ test('switching away during the final account check cancels a completed parallel
  const api=reader(async(_url,init)=>response(JSON.parse(init.body)),{identityProvider:async()=>{if(++checks===5)controller.abort();return identity;}});
  await assert.rejects(api.get({from:'2026-11-01',to:'2026-11-30',signal:controller.signal}),e=>e.name==='AbortError');
 });
+
+test('a history read rejected during token rotation retries once with the same account',async()=>{
+ let current=identity;
+ const sent=[];
+ const api=reader(async(_url,init)=>{
+  sent.push(init.headers['x-buddy-access-token']);
+  if(sent.length===1){
+   current={...identity,buddyToken:'renewed'};
+   return Response.json({error:'buddy_session_unverified'},{status:401});
+  }
+  return Response.json({status:'accepted',role:'user'});
+ },{identityProvider:async()=>current});
+ assert.equal((await api.context()).role,'user');
+ assert.deepEqual(sent,['test-buddy','renewed']);
+});
+
+test('a 401 does not retry with unchanged credentials or a different account',async()=>{
+ for(const changedAccount of [false,true]){
+  let current=identity,calls=0;
+  const api=reader(async()=>{
+   calls++;
+   if(changedAccount)current={...identity,accountKey:'buddy-B',buddyToken:'other'};
+   return Response.json({error:'buddy_session_unverified'},{status:401});
+  },{identityProvider:async()=>current});
+  await assert.rejects(api.context(),error=>changedAccount
+   ?error.code==='auth_changed'
+   :error.code==='auth_required'&&error.httpStatus===401&&error.serverCode==='buddy_session_unverified');
+  assert.equal(calls,1);
+ }
+});

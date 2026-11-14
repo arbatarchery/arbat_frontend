@@ -15,7 +15,7 @@ scripts:
   - "/entrenamiento/js/sync-store.js?v=5"
   - "/entrenamiento/js/sync-engine.js?v=7"
   - "/entrenamiento/js/sync-identity.js?v=6"
-  - "/entrenamiento/js/sync-history.js?v=10"
+  - "/entrenamiento/js/sync-history.js?v=11"
   - "/entrenamiento/js/sync-captcha.js?v=3"
   - "/entrenamiento/js/sync-usage.js?v=3"
   - "/entrenamiento/js/sync-bootstrap.js?v=9"
