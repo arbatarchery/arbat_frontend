@@ -719,6 +719,9 @@
     }else{clearCoaching();state.selectedUser=currentUser();}
   }
 
+  const historyToken=()=>window.Buddy?.auth?.getAccessToken?.()||null;
+  let renderedToken=null;
+
   async function render() {
     const sequence=++state.renderSequence;closePopover();window.dispatchEvent(new CustomEvent('arbat:history-loading'));
     historyController?.abort();const controller=new AbortController();historyController=controller;const signal=controller.signal;
@@ -731,6 +734,7 @@
       if(cloud&&!(periodCache.entry?.key===JSON.stringify([currentUser().id,range.startKey,range.endKey])&&!periodCache.entry.signal.aborted))try{await waitForHistoryAuth(signal);}catch(error){if(signal.aborted)return;authFailure=error;}
       if(sequence!==state.renderSequence)return;
       range=selectedRange();
+      renderedToken=historyToken();
       const signedUser=currentUser();
       if(state.ownUserId!==signedUser.id){periodCache.clear();state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
       user=state.selectedUser||currentUser();
@@ -780,19 +784,22 @@
       $('historySyncDiagnostic').textContent=historyFailure?'Diagnóstico: '+historyFailure:'';
       if(!historyError&&state.coaching)$('historySyncNotice').hidden=true;
       $('historySyncMessage').textContent=historyError==='history_offline'?'Sin conexión. Se muestran los datos locales.':historyError==='history_auth_timeout'?'No se pudo terminar de comprobar tu sesión. Reintenta la consulta.':historyError==='captcha_required'?'Confirma la comprobación para consultar la nube. Tus datos locales siguen disponibles.':historyError==='rate_limited'?'La consulta a la nube alcanzó el límite temporal de consultas. Se muestran datos locales; espera un minuto y reintenta.':'No se pudo completar la consulta de la nube. Se muestran los datos locales.';
-      if(historyError&&user.allAthletes)$('historySyncMessage').textContent='No se pudo completar la consulta de Todos. No se muestran datos personales ni resultados parciales como si fueran el conjunto completo. Reintenta la consulta.';
+      if(['auth_required','buddy_auth_required'].includes(historyError))$('historySyncMessage').textContent='No se pudo verificar tu sesión. Reintenta la consulta. Si el problema continúa, vuelve a iniciar sesión.';
+      else if(historyError&&user.allAthletes)$('historySyncMessage').textContent='No se pudo completar la consulta de Todos. No se muestran datos personales ni resultados parciales como si fueran el conjunto completo. Reintenta la consulta.';
     }
     }catch(error){
       if(signal.aborted||sequence!==state.renderSequence)return;
       historyError=error.code||'history_unavailable';historyFailure=safeHistoryDiagnostic(error);
-      $('historySyncNotice').hidden=false;$('historySyncMessage').textContent='No se pudo completar la consulta de la nube. Puedes reintentar.';
+      $('historySyncNotice').hidden=false;$('historySyncMessage').textContent=['auth_required','buddy_auth_required'].includes(historyError)
+        ?'No se pudo verificar tu sesión. Reintenta la consulta. Si el problema continúa, vuelve a iniciar sesión.'
+        :'No se pudo completar la consulta de la nube. Puedes reintentar.';
       $('historySyncDiagnostic').hidden=false;$('historySyncDiagnostic').textContent='Diagnóstico: '+historyFailure;
     }finally{
       if(sequence===state.renderSequence){state.loading=false;$('historyLoading').hidden=true;$('trainingHistory').setAttribute('aria-busy','false');}
     }
   }
 
-  let checkingLiveHistory=false;
+  let checkingLiveHistory=false,rejectedLiveAuth=null;
   async function refreshLiveHistory() {
     const entry=periodCache.entry,overview=entry?.metadataValue?.overview;
     if(checkingLiveHistory||state.loading||document.hidden||!navigator.onLine||!overview?.activity_version||entry.prefetchState==='loading')return;
@@ -800,6 +807,8 @@
     if(entry.key!==JSON.stringify([currentUser().id,range.startKey,range.endKey])){
       periodCache.clear();await render();return;
     }
+    const token=historyToken();
+    if(rejectedLiveAuth?.entry===entry&&rejectedLiveAuth.token===token)return;
     checkingLiveHistory=true;
     try{
       const latest=await window.ArbatTrainingSync.coachOverview({from:range.startKey,to:range.endKey,signal:entry.signal,firstPageOnly:true});
@@ -808,9 +817,10 @@
         periodCache.clear();await render();
       }
     }catch(error){
-      if(periodCache.entry===entry&&!entry.signal.aborted&&[401,403].includes(error.httpStatus)){
-        periodCache.clear();clearCoaching();await render();
-      }
+      if(periodCache.entry!==entry||entry.signal.aborted)return;
+      if(error.httpStatus===401)rejectedLiveAuth={entry,token};
+      if(error.httpStatus===403){periodCache.clear();clearCoaching();await render();}
+
     }finally{checkingLiveHistory=false;}
   }
   setInterval(refreshLiveHistory,10000);
@@ -825,7 +835,12 @@
   window.addEventListener('resize', closePopover);
   ['buddy:auth-state-changed', 'buddy:auth-ready', 'buddy:user-loaded', 'buddy:user-updated'].forEach(eventName => window.addEventListener(eventName, () => {
     const signedUser = currentUser(),identityChanged=state.ownUserId!==signedUser.id;
-    if(state.loading&&!identityChanged)return;
+    const token=historyToken();
+    const authFailed=['auth_required','buddy_auth_required','auth_changed','history_auth_timeout'].includes(historyError);
+    if(!identityChanged&&window.ArbatTrainingSync?.historyEnabled){
+      if(state.loading||!authFailed||!token||token===renderedToken)return;
+      periodCache.clear();
+    }else if(state.loading&&!identityChanged)return;
     if(identityChanged){periodCache.clear();state.ownUserId=signedUser.id;state.selectedUser=signedUser;state.directoryLoaded=false;state.users=[];state.verifiedRole=null;clearCoaching();}
     if (!state.selectedUser || (state.selectedUser.anonymous && rawCurrentUser()) || (!rawCurrentUser() && !state.selectedUser.anonymous)) state.selectedUser = signedUser;
     initializeDirectory(); render();

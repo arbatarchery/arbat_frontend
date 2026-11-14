@@ -4,7 +4,7 @@
  const scope=id=>id.accountKey?`buddy:${id.accountKey}`:`anon:${id.principalId}`;
  class Reader{
   constructor({enabled=false,url,publicKey,identityProvider,transport,fetchImpl=globalThis.fetch,concurrency=3}={}){Object.assign(this,{enabled,url,publicKey,identityProvider,transport,fetchImpl});this.fetchImpl=(...args)=>fetchImpl(...args);this.parts=new Map();this.claimed=new Set();this.claiming=new Map();this.concurrency=Math.max(1,Math.min(3,Number.isInteger(concurrency)?concurrency:3));}
-  async request(body,identity,signal){
+  async request(body,identity,signal,retryAuth=true){
    const diagnosticStart=Date.now();
    try{
    signal?.throwIfAborted();const current=await this.identityProvider();signal?.throwIfAborted();if(!current||scope(current)!==scope(identity))throw error('auth_changed');
@@ -20,6 +20,14 @@
    const headers={'Content-Type':'application/json',apikey:this.publicKey,Authorization:`Bearer ${current.supabaseToken||this.publicKey}`};if(current.buddyToken)headers['x-buddy-access-token']=current.buddyToken;
    const signals=[AbortSignal.timeout(body.action==='system.status'?20000:10000)];if(signal)signals.push(signal);
    const response=await this.fetchImpl(`${this.url.replace(/\/$/,'')}/functions/v1/training-sync`,{method:'POST',headers,body:JSON.stringify({schema_version:1,...body}),signal:AbortSignal.any(signals),cache:'no-store',redirect:'error'});
+   if(response.status===401&&retryAuth){
+    const renewed=await this.identityProvider();signal?.throwIfAborted();
+    if(!renewed||scope(renewed)!==scope(current))throw error('auth_changed');
+    if(renewed.buddyToken!==current.buddyToken||renewed.supabaseToken!==current.supabaseToken){
+     await response.body?.cancel().catch(()=>{});
+     return this.request(body,renewed,signal,false);
+    }
+   }
    if(!response.ok){let code=null;try{const data=await response.json();code=data.error;}catch{}throw Object.assign(error(response.status===429?'rate_limited':response.status===401?'auth_required':'history_unavailable'),{httpStatus:response.status,serverCode:code});}
    const reader=response.body.getReader();let length=0;const chunks=[];
    try{while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>1048576)throw error('history_response_limit');chunks.push(value);}}finally{reader.cancel().catch(()=>{});}
