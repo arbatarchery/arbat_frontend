@@ -60,3 +60,19 @@
     transform: none;
   }
 }
+
+.links-page__count {
+  margin-inline-start: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--piedra);
+  color: var(--tinta);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.links-page__brand .links-page__count {
+  margin-inline-start: 0;
+}
