@@ -34,13 +34,14 @@
     return a.slice(1).map((v, j) => Math.round(v + (b[j + 1] - v) * t));
   }
 
-  function drawTarget(ctx, points) {
+  function drawTarget(ctx, points, labels = true) {
     const fills = ['#202124', '#202124', '#08090b', '#08090b', '#06202e', '#06202e', '#320c12', '#320c12', '#322b0b', '#322b0b'];
     fills.forEach((fill, i) => {
       ctx.beginPath(); ctx.arc(CX, CY, R * (10 - i) / 10, 0, Math.PI * 2);
       ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = '#44454a'; ctx.lineWidth = 1; ctx.stroke();
     });
     ctx.beginPath(); ctx.arc(CX, CY, R * .05, 0, Math.PI * 2); ctx.stroke();
+    if (!labels) return;
     ctx.font = '16px Arial, sans-serif'; ctx.fillStyle = '#899099';
     for (let score = 1; score <= 10; score++) {
       const x = CX + R * (10.5 - score) / 10;
@@ -165,11 +166,15 @@
   }
 
   // End-only view: same measured geometry and rendering, without session totals.
-  function createEndCanvas(arrows = []) {
+  function createEndCanvas(arrows = [], { innerOnly = false } = {}) {
     const canvas=document.createElement('canvas');canvas.width=canvas.height=1080;
     const ctx=canvas.getContext('2d'),points=geometry(arrows);
     ctx.fillStyle='#000000';ctx.fillRect(0,0,1080,1080);
-    ctx.translate(0,-110);drawTarget(ctx,points);drawNebula(ctx,points);drawStars(ctx,points);
+    const scale = innerOnly ? canvas.width / (R * 1.6) : 1;
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(scale, scale);
+    ctx.translate(-CX, -CY);
+    drawTarget(ctx,points,!innerOnly);drawNebula(ctx,points);drawStars(ctx,points);
     return canvas;
   }
 

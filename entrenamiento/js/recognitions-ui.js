@@ -17,10 +17,55 @@
     return r.message||'';
   }
   function card(r){const box=element('article');box.className='arbat-recognition';box.append(element('h3',r.title),element('p',description(r)));if(r.periods)box.append(element('small',`${r.configuration[0]} m · diana ${r.configuration[1]} cm · ${r.configuration[2]==='competition'?'Competencia':'Entrenamiento'} · ${r.periods[0].from} – ${r.periods[0].to} frente a ${r.periods[1].from} – ${r.periods[1].to} · ${format(r.before,2)} → ${format(r.after,2)} mm`));return box;}
-  function show(title,content){
-    dialog?.close();dialog?.remove();dialog=element('dialog');dialog.className='arbat-recognition-dialog';
-    const heading=element('h2',title);heading.id='arbatRecognitionTitle';dialog.setAttribute('aria-labelledby',heading.id);const close=element('button','Cerrar');close.type='button';close.className='btn';close.addEventListener('click',()=>dialog.close());
-    dialog.append(heading,content,element('p','Calculado con el historial disponible. Las sesiones pendientes de sincronización pueden cambiar los resultados.'),close);document.body.append(dialog);dialog.showModal();
+  function backdropArrows(sessions, now=new Date()){
+    const first=new Date(now);
+    first.setDate(first.getDate()-6);
+    const from=dateKey(first),to=dateKey(now);
+    let best=[],bestDate='';
+    for(const session of sessions){
+      const date=session.date||(session.endedAt||session.startedAt||'').slice(0,10);
+      if(session.isCurrent||!date||date<from||date>to)continue;
+      const arrows=window.ArbatConstellation?.sessionArrows(session)||engine.arrows(session);
+      if(arrows.length>best.length||(arrows.length===best.length&&date>bestDate)){
+        best=arrows;
+        bestDate=date;
+      }
+    }
+    return best;
+  }
+  function show(title,content,sessions){
+    dialog?.close();
+    dialog?.remove();
+    const modal=element('dialog');
+    dialog=modal;
+    modal.className='arbat-recognition-dialog';
+    const heading=content.querySelector('h2')||element('h2',title);
+    heading.id='arbatRecognitionTitle';
+    modal.setAttribute('aria-labelledby',heading.id);
+    if(!heading.parentNode)content.prepend(heading);
+    content.classList.add('arbat-recognition-dialog-content');
+    const backdrop=window.ArbatConstellation?.createEndCanvas(backdropArrows(sessions),{innerOnly:true});
+    if(backdrop){
+      backdrop.className='arbat-recognition-backdrop';
+      backdrop.setAttribute('aria-hidden','true');
+      modal.append(backdrop);
+    }
+    const close=element('button','Sigamos entrenando');
+    close.type='button';
+    close.className='btn arbat-recognition-close';
+    close.addEventListener('click',()=>modal.close());
+    modal.addEventListener('click',event=>{
+      if(event.target!==modal)return;
+      const {left,right,top,bottom}=modal.getBoundingClientRect();
+      if(event.clientX<left||event.clientX>=right||event.clientY<top||event.clientY>=bottom)modal.close();
+    });
+    modal.addEventListener('close',()=>{
+      if(dialog===modal)dialog=null;
+      modal.remove();
+    },{once:true});
+    modal.append(content,close);
+    document.body.append(modal);
+    modal.showModal();
   }
   function remember(session,history,id){
     // Derived cache stays outside training snapshots, CSV and Statetty payloads.
@@ -34,21 +79,8 @@
   }
   function monthlyCard(summary){
     const box=element('section');box.className='arbat-monthly';
-    box.append(element('p','arbat archery'),element('h3','Mi entrenamiento en números'),element('p','En los últimos 30 días lancé'),element('strong',format(summary.count,0)),element('p','FLECHAS'),element('p','Cada flecha es parte del camino.'),element('small',`${new Date(summary.from).toLocaleDateString('es-BO')} – ${new Date(summary.to).toLocaleDateString('es-BO')} · Datos disponibles en este dispositivo; el total puede cambiar al sincronizar.`),element('p','Sentio, ergo attingo. · arbatarchery.com'));
-    const controls=element('div');
-    for(const [label,w,h] of [['Historia 9:16',1080,1920],['Publicación 4:5',1080,1350]]){
-      const button=element('button',label);button.type='button';button.className='btn';button.addEventListener('click',async()=>{
-        const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const c=canvas.getContext('2d');
-        c.fillStyle='#122e35';c.fillRect(0,0,w,h);c.textAlign='center';
-        const line=(text,y,size,color='#fff')=>{c.font=`${size}px sans-serif`;c.fillStyle=color;c.fillText(text,w/2,y,w-100);};
-        line('arbat archery',h*.13,65);line('MI ENTRENAMIENTO EN NÚMEROS',h*.24,34);line('En los últimos 30 días lancé',h*.36,40);line(format(summary.count,0),h*.53,170,'#ebce85');line('FLECHAS',h*.60,60);line('Cada flecha es parte del camino.',h*.72,36);line(`${new Date(summary.from).toLocaleDateString('es-BO')} – ${new Date(summary.to).toLocaleDateString('es-BO')}`,h*.78,28);line('Sentio, ergo attingo.',h*.87,30);line('arbatarchery.com',h*.92,40,'#ebce85');
-        canvas.toBlob(async blob=>{if(!blob)return;const file=new File([blob],`arbat-${summary.month}-${w}x${h}.png`,{type:'image/png'});
-          try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'Mi entrenamiento · arbat archery'});return;}}catch(e){if(e.name==='AbortError')return;}
-          const url=URL.createObjectURL(blob),link=element('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-        },'image/png');
-      });controls.append(button);
-    }
-    box.append(controls);return box;
+    box.append(element('p','arbat archery'),element('h2','Mi entrenamiento en números'),element('p','En los últimos 30 días lancé'),element('strong',format(summary.count,0)),element('p','FLECHAS'),element('p','Cada flecha es parte del camino.'),element('small',`${new Date(summary.from).toLocaleDateString('es-BO')} – ${new Date(summary.to).toLocaleDateString('es-BO')}`),element('p','Sentio, ergo attingo. · arbatarchery.com'));
+    return box;
   }
   async function available(id){
     let local=read('arbat-training-history',[]);if(!Array.isArray(local))local=[];
@@ -73,7 +105,7 @@
     if(seen[summary.month])return;
     // Persist before display; synchronization never replays an announcement.
     seen[summary.month]=summary;if(!write(key,seen))return;
-    show('Tu entrenamiento de los últimos 30 días',monthlyCard(summary));
+    show('Tu entrenamiento de los últimos 30 días',monthlyCard(summary),sessions);
   }
   window.addEventListener('arbat:session-ended',event=>{
     const session=event.detail,id=identity();if(session.endReason!=='manual'||engine.owner(session)!==id)return;
@@ -84,7 +116,7 @@
     const result=remember(canonicalSession,history,id);seen[session.id]=true;write(key,seen);
     cache=engine.unique([...history,canonicalSession]);const box=element('div');
     for(const record of result.records)box.append(card(record));if(result.ordinary)box.append(card(result.ordinary));
-    if(box.children.length)show('Tu evolución deportiva',box);
+    if(box.children.length)show('Tu evolución deportiva',box,cache);
   });
   window.addEventListener('arbat:history-loading',()=>{const root=document.getElementById('arbatRecognitions');if(root){root.replaceChildren();root.hidden=true;}dialog?.close();});
   window.addEventListener('arbat:history-loaded',event=>{
@@ -101,7 +133,7 @@
     if(root.children.length===2)root.append(element('p','Continúa registrando entrenamientos para identificar tendencias. Las comparaciones usan los datos disponibles en el período seleccionado.'));
     if(user.id===identity()){
       const saved=read(`arbat-recognitions-month:${user.id}`,{}),last=Object.keys(saved).sort().at(-1);
-      if(last){const button=element('button','Ver mi resumen mensual');button.type='button';button.className='btn';button.addEventListener('click',()=>show('Tu entrenamiento en números',monthlyCard(saved[last])));root.append(button);}
+      if(last){const button=element('button','Ver mi resumen mensual');button.type='button';button.className='btn';button.addEventListener('click',()=>show('Tu entrenamiento en números',monthlyCard(saved[last]),sessions));root.append(button);}
     }
   });
   for(const name of ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded'])window.addEventListener(name,()=>{if(scope!==identity()){dialog?.close();const root=document.getElementById('arbatRecognitions');if(root){root.replaceChildren();root.hidden=true;}}refresh();});
