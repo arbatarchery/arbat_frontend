@@ -55,9 +55,10 @@
    const settings=[...new Set(included.map(e=>`${e.sessionType==='competition'?'Competencia':'Entrenamiento'} · ${e.shootingDistance||'—'} · ${e.targetSize||'—'}`))].join(' / ');
    row.append(sessionIdentity(s,contacts));
    const endCount = text('td', included.length);
-   const breathing = text('button', 'Respiración de grupos');
+   const breathing = text('button', 'Respiración');
    breathing.type = 'button';
    breathing.className = 'history-button';
+   breathing.style.color = '#000';
    breathing.style.marginInlineStart = '0.5em';
    breathing.addEventListener('click', () => window.ArbatGroupBreathing.open(s, loaded.user));
    endCount.append(' ', breathing);

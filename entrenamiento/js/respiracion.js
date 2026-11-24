@@ -168,19 +168,19 @@
     const ends = groups(session, constellation);
     const dialog = document.createElement('dialog');
     active = dialog;
-    dialog.style.cssText = 'color:white;background:#14181d;border:1px solid #536170;border-radius:12px;max-width:92vw';
-    const title = document.createElement('h2'), status = document.createElement('p');
-    title.textContent = 'Respiración de grupos';
-    title.id = 'groupBreathingTitle';
-    dialog.setAttribute('aria-labelledby', title.id);
+    dialog.style.cssText = 'color:white;background:#14181d;border:0;border-radius:12px;padding:0;max-width:100vw';
+    dialog.setAttribute('aria-label', 'Respiración de grupos');
+    const status = document.createElement('p'), actions = document.createElement('div');
+    status.style.margin = '1rem';
+    actions.style.padding = '0.75rem 1rem';
     status.setAttribute('role', 'status');
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Cerrar';
     close.addEventListener('click', () => dialog.close());
     const video = document.createElement('video'), download = document.createElement('a');
-    video.controls = video.loop = video.playsInline = true;
-    video.style.cssText = 'display:block;max-width:100%;max-height:65vh;margin:0 auto';
+    video.controls = video.loop = video.playsInline = video.autoplay = video.muted = true;
+    video.style.cssText = 'width:auto;height:min(84vh, calc(100vw * 16 / 9));max-width:100%;margin:0';
     video.hidden = download.hidden = true;
     video.style.display = 'none';
     download.textContent = 'Guardar video';
@@ -194,7 +194,8 @@
       dialog.remove();
       if (active === dialog) active = null;
     }, { once: true });
-    dialog.append(title, status, video, download, ' ', close);
+    actions.append(download, close);
+    dialog.append(status, video, actions);
     document.body.append(dialog);
     dialog.showModal();
     if (!ends.length) { status.textContent = 'Esta sesión todavía no tiene flechas.'; return; }
@@ -212,9 +213,10 @@
       video.src = download.href = url;
       const extension = blob.type.startsWith('video/mp4') ? 'mp4' : 'webm';
       download.download = 'arbat-respiracion-' + (session.date || 'sesion') + '.' + extension;
-      status.textContent = extension === 'mp4' ? 'Video listo.' : 'Video listo en formato WebM.';
+      status.hidden = true;
       video.hidden = download.hidden = false;
       video.style.display = 'block';
+      video.play().catch(() => {});
     } catch (error) {
       if (!controller.signal.aborted) status.textContent = error.message || 'No se pudo generar el video.';
     }
