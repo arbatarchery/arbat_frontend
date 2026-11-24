@@ -214,6 +214,25 @@
       const extension = blob.type.startsWith('video/mp4') ? 'mp4' : 'webm';
       download.download = 'arbat-respiracion-' + (session.date || 'sesion') + '.' + extension;
       status.hidden = true;
+      if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+        const type = extension === 'mp4' ? 'video/mp4' : 'video/webm';
+        const file = new File([blob], download.download, { type });
+        const shareData = { files: [file] };
+        if (navigator.canShare(shareData)) {
+          download.addEventListener('click', async event => {
+            event.preventDefault();
+            try {
+              await navigator.share(shareData);
+            } catch (error) {
+              if (error.name === 'AbortError' || controller.signal.aborted) return;
+              const fallback = download.cloneNode(false);
+              actions.append(fallback);
+              fallback.click();
+              fallback.remove();
+            }
+          });
+        }
+      }
       video.hidden = download.hidden = false;
       video.style.display = 'block';
       video.play().catch(() => {});
