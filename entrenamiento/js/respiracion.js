@@ -3,12 +3,56 @@
 
   const width = 1080, height = 1620, fps = 30, transition = 500, samples = 64;
   const verticalInset = (height - 1350) / 2;
+  const targetRadius = 466, constellationCenterY = 650;
   const palette = ['#626870', '#262930', '#19465f', '#842e2d', '#8e6616'];
   const directions = Array.from({ length: samples }, (_, i) => {
     const angle = i * Math.PI * 2 / samples;
     return [Math.cos(angle), Math.sin(angle)];
   });
   const mix = (a, b, t) => a + (b - a) * t;
+
+  // Compact Gaussian KDE. Fixed bandwidth in target units keeps separated groups
+  // separate and makes density comparable across sessions, independent of score.
+  function densityAt(points, x, y, bandwidth) {
+    const sigma = targetRadius * bandwidth, cutoff2 = (sigma * 3.5) ** 2;
+    let density = 0;
+    for (const p of points) {
+      const distance2 = (x - p.x) ** 2 + (y - p.y) ** 2;
+      if (distance2 <= cutoff2) density += Math.exp(-distance2 / (2 * sigma ** 2));
+    }
+    return density;
+  }
+
+  function colorAt(density) {
+    // A single isolated arrow cannot become a yellow peak through max-normalization.
+    const q = 1 - Math.exp(-density / 4);
+    const stops = [[0, 15, 70, 255], [.28, 35, 85, 255], [.42, 150, 32, 190],
+      [.55, 245, 38, 65], [.74, 255, 125, 20], [.9, 255, 220, 70], [1, 255, 248, 210]];
+    let i = 1;
+    while (i < stops.length - 1 && q > stops[i][0]) i++;
+    const a = stops[i - 1], b = stops[i], t = (q - a[0]) / (b[0] - a[0]);
+    return a.slice(1).map((v, j) => Math.round(v + (b[j + 1] - v) * t));
+  }
+
+  function createCloud(points) {
+    if (!points.length) return null;
+    const size = 192, heat = document.createElement('canvas'); heat.width = heat.height = size;
+    const hctx = heat.getContext('2d'), image = hctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const xx = width / 2 - targetRadius + (x + .5) / size * targetRadius * 2, yy = constellationCenterY - targetRadius + (y + .5) / size * targetRadius * 2;
+      // Wider gas field blends nearby impacts without moving a single star.
+      const density = densityAt(points, xx, yy, .08);
+      if (density < .035) continue;
+      const i = (y * size + x) * 4, color = colorAt(density);
+      image.data[i] = color[0]; image.data[i + 1] = color[1]; image.data[i + 2] = color[2];
+      // Fine-scale KDE adds soft internal filaments only where measured density exists.
+      const fine = densityAt(points, xx, yy, .018);
+      const detail = .82 + .18 * Math.min(1, fine / Math.max(density * .3, .001));
+      image.data[i + 3] = 245 * (1 - Math.exp(-density / 2)) * detail;
+    }
+    hctx.putImageData(image, 0, 0);
+    return heat;
+  }
 
   function outline(points) {
     if (!points.length) return [];
@@ -40,7 +84,7 @@
       const points = constellation.geometry(end.arrows);
       const average = end.arrows.reduce((sum, arrow) => sum + constellation.valueOf(arrow), 0) / end.arrows.length;
       const color = palette[Math.max(0, Math.min(4, Math.floor((Math.round(average) - 1) / 2)))];
-      return { ...end, points, outline: outline(points),
+      return { ...end, points, outline: outline(points), cloud: createCloud(points),
         color: color.slice(1).match(/../g).map(channel => parseInt(channel, 16)) };
     });
   }
@@ -103,6 +147,18 @@
     ctx.translate(0, 15 + verticalInset);
     const previous = ends[(index + ends.length - 1) % ends.length];
     const next = ends[(index + 2) % ends.length];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(width / 2, constellationCenterY, targetRadius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'screen';
+    for (const [group, opacity] of [[from, 1 - t], [to, t]]) {
+      if (!group.cloud || !opacity) continue;
+      ctx.globalAlpha = 0.38 * opacity;
+      ctx.drawImage(group.cloud, width / 2 - targetRadius, constellationCenterY - targetRadius,
+        targetRadius * 2, targetRadius * 2);
+    }
+    ctx.restore();
     drawOutline(ctx, previous, from, to, next, progress, t);
     ctx.globalAlpha = 1 - t;
     constellation.drawStars(ctx, from.points);
@@ -114,7 +170,7 @@
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px Arial, sans-serif';
-    ctx.fillText('Andanada ' + String((progress < 0.5 ? from : to).number).padStart(2, '0'), width / 2, 202 + verticalInset);
+    ctx.fillText('Andanada ' + String((progress < 0.5 ? from : to).number).padStart(2, '0'), width / 2, 202 + verticalInset - 60);
   }
 
   function makeCanvas() {
@@ -129,13 +185,13 @@
     const metadata = constellation.createSessionCanvas(session, profile, true);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(metadata, 0, 0, width, 200, 0, verticalInset, width, 200);
-    ctx.drawImage(metadata, 0, 1130, width, 220, 0, 1130 + verticalInset, width, 220);
+    ctx.drawImage(metadata, 0, 0, width, 200, 0, verticalInset - 60, width, 200);
+    ctx.drawImage(metadata, 0, 1130, width, 220, 0, 1130 + verticalInset + 65, width, 220);
     const fills = ['#202124', '#202124', '#090a0c', '#090a0c', '#061d2a', '#061d2a',
       '#290c10', '#290c10', '#2a2309', '#2a2309'];
     fills.forEach((fill, i) => {
       ctx.beginPath();
-      ctx.arc(width / 2, 665 + verticalInset, 466 * (10 - i) / 10, 0, Math.PI * 2);
+      ctx.arc(width / 2, 665 + verticalInset, targetRadius * (10 - i) / 10, 0, Math.PI * 2);
       ctx.fillStyle = fill;
       ctx.fill();
       ctx.strokeStyle = i === 0 ? '#363839' : '#08090a';

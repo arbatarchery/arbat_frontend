@@ -480,7 +480,6 @@
     return window.ArbatConstellation?.sessionArrows(session) || [];
   }
   function previousConstellationSession(){
-    if(state.completed.some(end=>(end.arrows||[]).length) || state.current.length>=state.arrowsPerEnd)return null;
     let history=[];
     try{const saved=JSON.parse(localStorage.getItem(historyStorageKey));if(Array.isArray(saved))history=saved;}catch(_){}
     // The in-memory copy can survive a storage write failure when ending a session.
@@ -492,8 +491,8 @@
     return candidates.map((session,index)=>({session,index,time:Date.parse(session.endedAt||session.startedAt||session.date)||0}))
       .sort((a,b)=>b.time-a.time||b.index-a.index)[0]?.session||null;
   }
-  function updatePreviousConstellation(){
-    $('previousConstellationBtn').hidden=!previousConstellationSession();
+  function visualizationSession(){
+    return state.completed.length === 0 ? previousConstellationSession() || state : state;
   }
   function drawConstellation(session=state){
     const arrows=constellationArrows(session);
@@ -513,16 +512,13 @@
   }
   $('constellationBtn').addEventListener('click',()=>{
     if(!window.ArbatConstellation){$('status').textContent='No se pudo cargar el generador de constelación. Recarga la página.';return;}
-    if(!drawConstellation()){$('status').textContent='Registra al menos una flecha para crear la constelación.';return;}
-    $('status').textContent='Constelación creada a partir de los datos de la sesión.';
+    const session=visualizationSession();
+    if(!drawConstellation(session)){$('status').textContent='Registra al menos una flecha para crear la constelación.';return;}
+    $('status').textContent=session===state
+      ? 'Constelación creada a partir de los datos de la sesión.'
+      : 'Constelación de la sesión anterior.';
   });
-  $('groupBreathingBtn').addEventListener('click', () => window.ArbatGroupBreathing.open(state, ownerSnapshot()));
-  $('previousConstellationBtn').addEventListener('click',()=>{
-    const previous=previousConstellationSession();
-    if(!previous){updatePreviousConstellation();$('status').textContent='No hay una sesión anterior disponible o ya registraste una andanada actual.';return;}
-    if(!window.ArbatConstellation){$('status').textContent='No se pudo cargar el generador de constelación. Recarga la página.';return;}
-    if(drawConstellation(previous))$('status').textContent=`Constelación de la sesión anterior (${previous.date||'sin fecha'}). La sesión actual se conserva.`;
-  });
+  $('groupBreathingBtn').addEventListener('click', () => window.ArbatGroupBreathing.open(visualizationSession(), ownerSnapshot()));
   $('constellationClose').addEventListener('click',()=>{constellationOverlay.hidden=true;});
   $('constellationDownload').addEventListener('click',()=>{
     if(!constellationUrl)return;
@@ -543,7 +539,7 @@
     if(document.activeElement!==$('sessionNotes'))$('sessionNotes').value=state.notes;
     $('endSummaryTotal').textContent=subtotal(state.current);
     $('endSummaryOverlay').hidden=!locked;
-    wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();updatePreviousConstellation();
+    wrap.setAttribute('aria-disabled',String(locked));renderMarkers();renderScores();publishSessionData();
     schedulePendingEnd();
     scheduleSessionClose();
   }
@@ -595,7 +591,7 @@
       if(sessionStarted())archiveCurrentSession('account-change');else{state=fresh();save();render();}
       return;
     }
-    if(!owner.anonymous&&state.owner?.anonymous!==false){state.owner=owner;save();publishSessionData();updatePreviousConstellation();}
+    if(!owner.anonymous&&state.owner?.anonymous!==false){state.owner=owner;save();publishSessionData();}
   };
   ['buddy:auth-ready','buddy:auth-state-changed','buddy:user-loaded','buddy:user-updated'].forEach(eventName=>window.addEventListener(eventName,syncOwner));
   if(window.ArbatTrainingSync?.authObserved||!ownerSnapshot().anonymous)syncOwner();
