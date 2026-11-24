@@ -91,13 +91,13 @@
     });
   }
 
-  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '', owner = null } = {}) {
+  function createCanvas({ arrows = [], date = '', sessionType = 'training', rounds, arrowsPerEnd, shootingDistance = '', targetSize = '', owner = null, video = false } = {}) {
     const points = geometry(arrows), canvas = document.createElement('canvas');
     canvas.width = 1080; canvas.height = 1350;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, 1080, 1350);
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#ffffff'; ctx.font = '600 55px Arial, sans-serif'; ctx.fillText('Constelación de flechas', CX, 80);
+    ctx.fillStyle = '#ffffff'; ctx.font = '600 55px Arial, sans-serif'; ctx.fillText(video ? 'Respiración de grupos' : 'Constelación de flechas', CX, 80);
     ctx.fillStyle = '#b8cde2'; ctx.font = '26px Arial, sans-serif';
     ctx.fillText(['competition', 'Tournament'].includes(sessionType) ? 'Sesión de competencia' : 'Sesión de entrenamiento', CX, 120);
     const parsed = new Date(`${date}T12:00:00`);
@@ -108,7 +108,7 @@
     if (String(targetSize).trim()) measurements.push(`Diana: ${targetSize} cm`);
     ctx.font = '20px Arial, sans-serif';
     if (measurements.length) ctx.fillText(measurements.join(' · '), CX, 176, 960);
-    drawTarget(ctx, points); drawNebula(ctx, points); drawStars(ctx, points);
+    if (!video) { drawTarget(ctx, points); drawNebula(ctx, points); drawStars(ctx, points); }
     const total = arrows.reduce((sum, a) => sum + valueOf(a), 0);
     const stats = [[rounds ?? '—', ['Rondas']], [arrowsPerEnd ?? '—', ['Flechas por', 'ronda']],
       [arrows.length, ['Flechas totales', 'de sesión']], [(arrows.length ? total / arrows.length : 0).toFixed(2).replace('.', ','), ['Promedio']], [total, ['Puntos totales']]];
@@ -127,7 +127,7 @@
       ctx.fillText(athleteName, CX, 1260, 960);
     }
     ctx.fillStyle = '#b8cde2'; ctx.font = '23px Arial, sans-serif'; ctx.fillText('arbatarchery.com', CX, 1290);
-    ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('V2.0', CX, 1324);
+    if (!video) { ctx.fillStyle = '#778899'; ctx.font = '16px Arial, sans-serif'; ctx.fillText('V2.0', CX, 1324); }
     return canvas;
   }
 
@@ -144,7 +144,7 @@
 
   // One entry point for current, previous and historical sessions.
   // A supplied profile can enrich only the session's own registered account.
-  function createSessionCanvas(session = {}, profile = null) {
+  function createSessionCanvas(session = {}, profile = null, video = false) {
     let owner = session.owner || profile;
     if (owner?.anonymous === false && profile?.anonymous === false &&
         String(owner.id) === String(profile.id)) {
@@ -160,7 +160,7 @@
       arrowsPerEnd: session.arrowsPerEnd,
       shootingDistance: sessionMeasurement(session, 'shootingDistance'),
       targetSize: sessionMeasurement(session, 'targetSize'),
-      owner
+      owner, video
     });
   }
 
@@ -173,6 +173,6 @@
     return canvas;
   }
 
-  window.ArbatConstellation = { createCanvas, createSessionCanvas, sessionArrows, createEndCanvas };
+  window.ArbatConstellation = { createCanvas, createSessionCanvas, sessionArrows, createEndCanvas, geometry, valueOf, drawStars };
 })();
 

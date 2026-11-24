@@ -516,6 +516,7 @@
     if(!drawConstellation()){$('status').textContent='Registra al menos una flecha para crear la constelación.';return;}
     $('status').textContent='Constelación creada a partir de los datos de la sesión.';
   });
+  $('groupBreathingBtn').addEventListener('click', () => window.ArbatGroupBreathing.open(state, ownerSnapshot()));
   $('previousConstellationBtn').addEventListener('click',()=>{
     const previous=previousConstellationSession();
     if(!previous){updatePreviousConstellation();$('status').textContent='No hay una sesión anterior disponible o ya registraste una andanada actual.';return;}
