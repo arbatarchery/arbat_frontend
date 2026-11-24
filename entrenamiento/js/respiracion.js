@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const width = 1080, height = 1920, fps = 30, transition = 500, samples = 64;
+  const width = 1080, height = 1350, fps = 30, transition = 500, samples = 64;
   const palette = ['#626870', '#262930', '#19465f', '#842e2d', '#8e6616'];
   const directions = Array.from({ length: samples }, (_, i) => {
     const angle = i * Math.PI * 2 / samples;
@@ -44,11 +44,35 @@
     });
   }
 
-  function drawOutline(ctx, from, to, t) {
+  // Equal time between ends: use a shared, monotone tangent on both
+  // sides of each recorded shape to avoid overshooting its coordinates.
+  function tangent(incoming, outgoing) {
+    if (incoming * outgoing <= 0) return 0;
+    return 2 * incoming * outgoing / (incoming + outgoing);
+  }
+
+  function interpolateContour(previous, from, to, next, progress, eased) {
+    const change = to - from;
+    const start = tangent(from - previous, change);
+    const end = tangent(change, next - to);
+    const remaining = 1 - progress;
+    return mix(from, to, eased) + progress * remaining *
+      (remaining * start - progress * end);
+  }
+
+  function drawOutline(ctx, previous, from, to, next, progress, t) {
     if (!from.outline.length && !to.outline.length) return;
     const a = from.outline.length ? from.outline : to.outline;
     const b = to.outline.length ? to.outline : from.outline;
-    const points = a.map((p, i) => ({ x: mix(p.x, b[i].x, t), y: mix(p.y, b[i].y, t) }));
+    const points = a.map((p, i) => {
+      const q = b[i];
+      const before = from.outline.length && previous.outline.length ? previous.outline[i] : p;
+      const after = to.outline.length && next.outline.length ? next.outline[i] : q;
+      return {
+        x: interpolateContour(before.x, p.x, q.x, after.x, progress, t),
+        y: interpolateContour(before.y, p.y, q.y, after.y, progress, t)
+      };
+    });
     const color = from.color.map((channel, i) => Math.round(mix(channel, to.color[i], t)));
     ctx.save();
     ctx.globalAlpha = mix(Number(Boolean(from.outline.length)), Number(Boolean(to.outline.length)), t);
@@ -75,8 +99,10 @@
     const t = progress * progress * (3 - 2 * progress);
     ctx.drawImage(backdrop, 0, 0);
     ctx.save();
-    ctx.translate(0, 310);
-    drawOutline(ctx, from, to, t);
+    ctx.translate(0, 15);
+    const previous = ends[(index + ends.length - 1) % ends.length];
+    const next = ends[(index + 2) % ends.length];
+    drawOutline(ctx, previous, from, to, next, progress, t);
     ctx.globalAlpha = 1 - t;
     constellation.drawStars(ctx, from.points);
     if (t > 0) {
@@ -85,8 +111,9 @@
     }
     ctx.restore();
     ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
     ctx.font = '28px Arial, sans-serif';
-    ctx.fillText('Andanada ' + String((progress < 0.5 ? from : to).number).padStart(2, '0'), 48, 275);
+    ctx.fillText('Andanada ' + String((progress < 0.5 ? from : to).number).padStart(2, '0'), width / 2, 202);
   }
 
   function makeCanvas() {
@@ -101,13 +128,13 @@
     const metadata = constellation.createSessionCanvas(session, profile, true);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(metadata, 0, 0, width, 200, 0, 78, width, 200);
-    ctx.drawImage(metadata, 0, 1130, width, 220, 0, 1575, width, 220);
+    ctx.drawImage(metadata, 0, 0, width, 200, 0, 0, width, 200);
+    ctx.drawImage(metadata, 0, 1130, width, 220, 0, 1130, width, 220);
     const fills = ['#202124', '#202124', '#090a0c', '#090a0c', '#061d2a', '#061d2a',
       '#290c10', '#290c10', '#2a2309', '#2a2309'];
     fills.forEach((fill, i) => {
       ctx.beginPath();
-      ctx.arc(540, 960, 466 * (10 - i) / 10, 0, Math.PI * 2);
+      ctx.arc(540, 665, 466 * (10 - i) / 10, 0, Math.PI * 2);
       ctx.fillStyle = fill;
       ctx.fill();
       ctx.strokeStyle = i === 0 ? '#363839' : '#08090a';
@@ -180,7 +207,7 @@
     close.addEventListener('click', () => dialog.close());
     const video = document.createElement('video'), download = document.createElement('a');
     video.controls = video.loop = video.playsInline = video.autoplay = video.muted = true;
-    video.style.cssText = 'width:auto;height:min(84vh, calc(100vw * 16 / 9));max-width:100%;margin:0';
+    video.style.cssText = 'width:auto;height:min(84vh, calc(100vw * 5 / 4));max-width:100%;margin:0';
     video.hidden = download.hidden = true;
     video.style.display = 'none';
     download.textContent = 'Guardar video';
