@@ -10,7 +10,7 @@ estilos:
 scripts:
   - "/entrenamiento/js/sync-diagnostics.js?v=4"
   - "/entrenamiento/js/constelacion.js?v=2.2"
-  - "/entrenamiento/js/respiracion.js?v=1"
+  - "/entrenamiento/js/respiracion.js?v=2"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
@@ -24,7 +24,7 @@ scripts:
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/historial/js/history-activity.js?v=1"
   - "/entrenamiento/historial/js/history-arrow-details.js?v=1"
-  - "/entrenamiento/historial/js/history-details.js?v=14"
+  - "/entrenamiento/historial/js/history-details.js?v=15"
   - "/entrenamiento/historial/js/history-roster.js?v=1"
   - "/entrenamiento/historial/js/capacity-notice.js?v=1"
   - "/entrenamiento/historial/js/system-status.js?v=5"
