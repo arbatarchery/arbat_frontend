@@ -341,7 +341,8 @@
     const start = timeValue(session.startedAt), end = timeValue(session.endedAt);
     heading.textContent = totalSessions > 1 ? `Sesión ${index + 1} · ${start}` : 'Constelación de la sesión';
     meta.textContent = `${session.arrows.length} flechas · ${start}${end !== '—' ? `–${end}` : ''}`;
-    const canvas = window.ArbatConstellation?.createSessionCanvas(session, state.selectedUser || currentUser());
+    const profile = state.selectedUser || currentUser();
+    const canvas = window.ArbatConstellation?.createSessionCanvas(session, profile);
     if (canvas) {
       canvas.className = 'session-constellation-canvas';
       canvas.setAttribute('role', 'img');
@@ -350,6 +351,12 @@
     } else {
       section.append(heading, meta, constellation(session.arrows));
     }
+    const breathing = document.createElement('button');
+    breathing.type = 'button';
+    breathing.className = 'history-button history-breathing-button';
+    breathing.textContent = 'Respiración';
+    breathing.addEventListener('click', () => window.ArbatGroupBreathing.open(session, profile));
+    section.append(breathing);
     return section;
   }
 
