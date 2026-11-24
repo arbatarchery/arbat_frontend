@@ -10,7 +10,7 @@ estilos:
 scripts:
   - "/entrenamiento/js/sync-diagnostics.js?v=4"
   - "/entrenamiento/js/constelacion.js?v=2.2"
-  - "/entrenamiento/js/respiracion.js?v=5"
+  - "/entrenamiento/js/respiracion.js?v=6"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"

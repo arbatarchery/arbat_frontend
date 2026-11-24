@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  const width = 1080, height = 1350, fps = 30, transition = 500, samples = 64;
+  const width = 1080, height = 1620, fps = 30, transition = 500, samples = 64;
+  const verticalInset = (height - 1350) / 2;
   const palette = ['#626870', '#262930', '#19465f', '#842e2d', '#8e6616'];
   const directions = Array.from({ length: samples }, (_, i) => {
     const angle = i * Math.PI * 2 / samples;
@@ -99,7 +100,7 @@
     const t = progress * progress * (3 - 2 * progress);
     ctx.drawImage(backdrop, 0, 0);
     ctx.save();
-    ctx.translate(0, 15);
+    ctx.translate(0, 15 + verticalInset);
     const previous = ends[(index + ends.length - 1) % ends.length];
     const next = ends[(index + 2) % ends.length];
     drawOutline(ctx, previous, from, to, next, progress, t);
@@ -113,7 +114,7 @@
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '28px Arial, sans-serif';
-    ctx.fillText('Andanada ' + String((progress < 0.5 ? from : to).number).padStart(2, '0'), width / 2, 202);
+    ctx.fillText('Andanada ' + String((progress < 0.5 ? from : to).number).padStart(2, '0'), width / 2, 202 + verticalInset);
   }
 
   function makeCanvas() {
@@ -128,13 +129,13 @@
     const metadata = constellation.createSessionCanvas(session, profile, true);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(metadata, 0, 0, width, 200, 0, 0, width, 200);
-    ctx.drawImage(metadata, 0, 1130, width, 220, 0, 1130, width, 220);
+    ctx.drawImage(metadata, 0, 0, width, 200, 0, verticalInset, width, 200);
+    ctx.drawImage(metadata, 0, 1130, width, 220, 0, 1130 + verticalInset, width, 220);
     const fills = ['#202124', '#202124', '#090a0c', '#090a0c', '#061d2a', '#061d2a',
       '#290c10', '#290c10', '#2a2309', '#2a2309'];
     fills.forEach((fill, i) => {
       ctx.beginPath();
-      ctx.arc(540, 665, 466 * (10 - i) / 10, 0, Math.PI * 2);
+      ctx.arc(width / 2, 665 + verticalInset, 466 * (10 - i) / 10, 0, Math.PI * 2);
       ctx.fillStyle = fill;
       ctx.fill();
       ctx.strokeStyle = i === 0 ? '#363839' : '#08090a';
@@ -207,7 +208,7 @@
     close.addEventListener('click', () => dialog.close());
     const video = document.createElement('video'), download = document.createElement('a');
     video.controls = video.loop = video.playsInline = video.autoplay = video.muted = true;
-    video.style.cssText = 'width:auto;height:min(84vh, calc(100vw * 5 / 4));max-width:100%;margin:0';
+    video.style.cssText = 'width:auto;height:min(84vh, calc(100vw * 3 / 2));max-width:100%;margin:0';
     video.hidden = download.hidden = true;
     video.style.display = 'none';
     download.textContent = 'Guardar video';
