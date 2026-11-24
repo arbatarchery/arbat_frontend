@@ -170,10 +170,18 @@
     const canvas=document.createElement('canvas');canvas.width=canvas.height=1080;
     const ctx=canvas.getContext('2d'),points=geometry(arrows);
     ctx.fillStyle='#000000';ctx.fillRect(0,0,1080,1080);
-    const scale = innerOnly ? canvas.width / (R * 1.6) : 1;
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.scale(scale, scale);
-    ctx.translate(-CX, -CY);
+    if (innerOnly) {
+      const radius = R * .8;
+      const scale = canvas.width / (radius * 2);
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-CX, -CY);
+      ctx.beginPath();
+      ctx.arc(CX, CY, radius, 0, Math.PI * 2);
+      ctx.clip();
+    } else {
+      ctx.translate(0, -110);
+    }
     drawTarget(ctx,points,!innerOnly);drawNebula(ctx,points);drawStars(ctx,points);
     return canvas;
   }
