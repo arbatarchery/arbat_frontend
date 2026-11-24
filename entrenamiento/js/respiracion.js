@@ -84,7 +84,7 @@
       const points = constellation.geometry(end.arrows);
       const average = end.arrows.reduce((sum, arrow) => sum + constellation.valueOf(arrow), 0) / end.arrows.length;
       const color = palette[Math.max(0, Math.min(4, Math.floor((Math.round(average) - 1) / 2)))];
-      return { ...end, points, outline: outline(points), cloud: createCloud(points),
+      return { ...end, points, outline: outline(points),
         color: color.slice(1).match(/../g).map(channel => parseInt(channel, 16)) };
     });
   }
@@ -147,18 +147,6 @@
     ctx.translate(0, 15 + verticalInset);
     const previous = ends[(index + ends.length - 1) % ends.length];
     const next = ends[(index + 2) % ends.length];
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(width / 2, constellationCenterY, targetRadius, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.globalCompositeOperation = 'screen';
-    for (const [group, opacity] of [[from, 1 - t], [to, t]]) {
-      if (!group.cloud || !opacity) continue;
-      ctx.globalAlpha = 0.38 * opacity;
-      ctx.drawImage(group.cloud, width / 2 - targetRadius, constellationCenterY - targetRadius,
-        targetRadius * 2, targetRadius * 2);
-    }
-    ctx.restore();
     drawOutline(ctx, previous, from, to, next, progress, t);
     ctx.globalAlpha = 1 - t;
     constellation.drawStars(ctx, from.points);
@@ -197,6 +185,19 @@
       ctx.strokeStyle = i === 0 ? '#363839' : '#08090a';
       ctx.stroke();
     });
+    const cloud = createCloud(constellation.geometry(constellation.sessionArrows(session)));
+    if (cloud) {
+      const centerY = constellationCenterY + 15 + verticalInset;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(width / 2, centerY, targetRadius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.38;
+      ctx.drawImage(cloud, width / 2 - targetRadius, centerY - targetRadius,
+        targetRadius * 2, targetRadius * 2);
+      ctx.restore();
+    }
     return canvas;
   }
 
