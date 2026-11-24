@@ -9,7 +9,8 @@ estilos:
   - "/entrenamiento/css/sync.css?v=4"
 scripts:
   - "/entrenamiento/js/sync-diagnostics.js?v=4"
-  - "/entrenamiento/js/constelacion.js?v=2.0"
+  - "/entrenamiento/js/constelacion.js?v=2.2"
+  - "/entrenamiento/js/respiracion.js?v=1"
   - "/entrenamiento/js/sync-config.js?v=3"
   - "/entrenamiento/js/sync-storage.js?v=1"
   - "/entrenamiento/js/sync-store.js?v=5"
@@ -22,7 +23,7 @@ scripts:
   - "/entrenamiento/js/recognitions.js?v=1"
   - "/entrenamiento/js/recognitions-ui.js?v=2"
   - "/entrenamiento/js/sync-ui.js?v=6"
-  - "/entrenamiento/js/entrenamiento.js?v=17"
+  - "/entrenamiento/js/entrenamiento.js?v=17-rg1"
 ---
 
 <div class="app-entrenamiento">
@@ -88,6 +89,7 @@ scripts:
       <button id="finishSessionBtn" class="btn btn-session-end" type="button" disabled>Terminar sesión del día</button>
       <div class="actions">
         <button id="constellationBtn" class="btn btn-constellation" type="button">Crear constelación</button>
+        <button id="groupBreathingBtn" class="btn btn-constellation" type="button">Respiración de grupos</button>
         <button id="previousConstellationBtn" class="btn btn-constellation" type="button" hidden>Constelación de la sesión anterior</button>
         <a class="btn btn-history" href="/entrenamiento/historial/">Ver mi historial</a>
         <a class="btn btn-home" href="/">Volver al inicio</a>
